@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>午夜德州 · Hold'em</title>
+<style>
+:root{
+  --panel:rgba(10,14,22,.86); --line:rgba(255,255,255,.1);
+  --gold:#ffcf5a; --red:#ff5468; --green:#3ddc84; --text:#eef2ff; --dim:#8d97b5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#07090d;color:var(--text);
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;user-select:none}
+canvas{display:block}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;
+  box-shadow:0 6px 24px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+#hud{position:fixed;left:16px;top:16px;z-index:3;min-width:180px}
+#hud h1{margin:0 0 6px;font-size:18px;color:var(--gold);letter-spacing:2px}
+#hud .row{font-size:13px;color:var(--dim);line-height:1.7}
+#hud b{color:var(--text);font-weight:600}
+#side{position:fixed;right:16px;bottom:16px;width:240px;z-index:3;display:flex;flex-direction:column;gap:8px}
+#log{font-size:12.5px;line-height:1.65;max-height:30vh;overflow:hidden}
+#log:empty{display:none}
+#log div{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#log div:first-child{color:var(--text)}
+#log .hl{color:var(--gold)}
+
+.seat{position:fixed;transform:translate(-50%,-100%);z-index:2;text-align:center;pointer-events:none;
+  padding:5px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);min-width:96px;transition:box-shadow .2s,border-color .2s,opacity .3s}
+.seat .nm{font-size:13px;font-weight:600}
+.seat .pf{display:block;width:44px;height:44px;margin:-26px auto 3px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#111}
+.seat.active .pf{border-color:var(--gold)}
+.seat .ck{font-size:12px;color:var(--gold)}
+.seat .act{position:absolute;left:50%;top:-24px;transform:translateX(-50%);font-size:12px;padding:1px 9px;border-radius:9px;
+  background:#2a3550;white-space:nowrap;opacity:0;transition:opacity .2s}
+.seat .act.on{opacity:1}
+.seat.active{border-color:var(--gold);box-shadow:0 0 18px rgba(255,207,90,.55)}
+.seat.folded{opacity:.45}
+.seat.win{border-color:var(--green);box-shadow:0 0 22px rgba(61,220,132,.6)}
+.act.fold{background:#4a2630}.act.raise{background:#7a4a10}.act.call{background:#1f4a3a}.act.allin{background:#8a1f2e}.act.win{background:#1d6a40}
+#potLbl{position:fixed;transform:translate(-50%,-100%);z-index:2;pointer-events:none;font-size:14px;
+  color:var(--gold);font-weight:700;text-shadow:0 2px 6px #000;white-space:nowrap}
+
+#me{position:fixed;left:16px;bottom:16px;z-index:3;min-width:200px}
+#me .nm{font-size:13px;color:var(--dim)}
+#me .ck{font-size:22px;color:var(--gold);font-weight:700}
+#me .hand{font-size:13px;margin-top:4px}
+#me .eq{font-size:12px;color:var(--dim)}
+#me.active{border-color:var(--gold);box-shadow:0 0 18px rgba(255,207,90,.5)}
+
+#ctrl{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:4;display:none;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)}
+#ctrl.on{display:flex}
+button{font:inherit;font-size:14px;font-weight:600;border:0;border-radius:10px;padding:10px 18px;cursor:pointer;color:#fff;
+  box-shadow:0 4px 0 rgba(0,0,0,.45);transition:transform .08s,filter .15s}
+button:hover{filter:brightness(1.15)}
+button:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.bf{background:#7a2a36}.bc{background:#1f7a55}.br{background:#b5741a}.bs{background:#2c3a5c;padding:6px 10px;font-size:12px}
+#raiseBox{display:flex;gap:6px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+#raiseBox input{width:150px;accent-color:var(--gold)}
+#raiseAmt{min-width:56px;text-align:right;color:var(--gold);font-weight:700}
+#next{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:4;display:none;background:#2c5a9c}
+#next.on{display:block}
+#over{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10;background:rgba(0,0,0,.6)}
+#over.on{display:flex}
+#over .box{text-align:center;padding:28px 40px}
+#over h2{margin:0 0 10px;color:var(--gold)}
+.kb{font-size:11px;opacity:.6;margin-left:4px}
+#side .tools{display:flex;gap:6px;justify-content:flex-end}
+#side .tools button{padding:5px 10px;font-size:12px;background:#2c3a5c;box-shadow:0 3px 0 rgba(0,0,0,.45)}
+#side .tools button.on{background:#b5741a}
+#me .stat{font-size:11.5px;color:var(--dim);margin-top:6px}
+.seat .act:empty,#me .act:empty{display:none}
+#banner{position:fixed;left:50%;top:24%;transform:translate(-50%,-50%) scale(.9);z-index:5;text-align:center;pointer-events:none;opacity:0;transition:opacity .3s,transform .3s}
+#banner.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#banner .t{font-size:32px;font-weight:800;color:var(--gold);letter-spacing:2px;text-shadow:0 3px 0 #000,0 0 26px rgba(255,200,80,.5)}
+#banner .s{font-size:15px;margin-top:4px;text-shadow:0 2px 4px #000}
+.seat .say{position:absolute;left:50%;bottom:calc(100% + 30px);transform:translateX(-50%) scale(.8);background:#f4f1e8;color:#1a1a1a;
+  font-size:12.5px;padding:5px 10px;border-radius:12px;white-space:nowrap;opacity:0;transition:opacity .2s,transform .2s}
+.seat .say::after{content:"";position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:#f4f1e8}
+.seat .say.on{opacity:1;transform:translateX(-50%) scale(1)}
+.delta{position:absolute;left:50%;top:0;font-weight:800;font-size:18px;pointer-events:none;white-space:nowrap;
+  text-shadow:0 2px 4px #000;animation:rise 1.8s ease-out forwards}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,0)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-46px)}}
+#me .act{display:inline-block;margin-left:6px;font-size:11px;padding:1px 8px;border-radius:8px;background:#2a3550;color:var(--text);opacity:0;transition:opacity .2s;vertical-align:1px}
+#me .act.on{opacity:1}
+.eqbar{height:4px;border-radius:2px;background:rgba(255,255,255,.1);margin-top:5px;overflow:hidden}
+.eqbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--gold),var(--green));transition:width .4s}
+@media (max-width:1180px){#side{bottom:auto;top:16px}}
+@media (max-width:760px){#log{display:none}#side{width:auto}#hud{transform:scale(.85);transform-origin:top left}}
+</style>
+</head>
+<body>
+<div id="hud" class="box">
+  <h1>午夜德州</h1>
+  <div class="row">第 <b id="handNo">0</b> 手 · 盲注 <b id="blinds">10/20</b></div>
+  <div class="row">剩余玩家 <b id="alive">6</b></div>
+</div>
+<div id="side">
+  <div class="tools"><button id="tMus" hidden>音乐 开</button><button id="tSnd">音效 开</button><button id="tSpd">速度 1x</button><button id="tAuto">托管</button></div>
+  <div id="log" class="box"></div>
+</div>
+<div id="banner"><div class="t"></div><div class="s"></div></div>
+<div id="potLbl"></div>
+<div id="seats"></div>
+<div id="me" class="box">
+  <div class="nm">你 · 座位 1<span class="act" id="meAct"></span></div>
+  <div class="ck" id="meChips">1000</div>
+  <div class="hand" id="meHand">等待发牌</div>
+  <div class="eq" id="meEq"></div>
+  <div class="eqbar"><i id="eqFill"></i></div>
+  <div class="stat" id="stat"></div>
+</div>
+<div id="ctrl">
+  <button class="bf" id="bFold">弃牌<span class="kb">F</span></button>
+  <button class="bc" id="bCall">过牌<span class="kb">C</span></button>
+  <div id="raiseBox">
+    <button class="bs" data-f="0.5">½池</button>
+    <button class="bs" data-f="1">1池</button>
+    <button class="bs" data-f="99">全下</button>
+    <input type="range" id="raiseRange" aria-label="加注金额">
+    <span id="raiseAmt">0</span>
+    <button class="br" id="bRaise">加注<span class="kb">R</span></button>
+  </div>
+</div>
+<button id="next">下一手 (空格)</button>
+<div id="over"><div class="box"><h2 id="overTitle"></h2><p id="overText"></p><button class="bc" id="restart">再来一局</button></div></div>
+
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const $ = s => document.querySelector(s);
+// ?auto：你的座位由 BOT 托管（用于测试 / 观战）
+const TEST = new URLSearchParams(location.search).has('auto');
+let auto = TEST;
+addEventListener('error', e => console.log('[ERR] ' + e.message + ' @' + e.lineno));
+addEventListener('unhandledrejection', e => console.log('[ERR] ' + (e.reason && e.reason.stack || e.reason)));
+
+/* ================= 场景 ================= */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07090d);
+scene.fog = new THREE.Fog(0x07090d, 20, 42);
+const camera = new THREE.PerspectiveCamera(44, 1, 0.5, 80);
+const camBase = new THREE.Vector3(), camLook = new THREE.Vector3(0, 0, 0.45);
+function resize() {
+  const a = innerWidth / innerHeight;
+  const k = a < 1.5 ? 1.5 / a : 1;   // 窄屏拉远镜头保证整桌可见
+  camBase.set(0, 11.2 * k, 10.2 * k);
+  camera.position.copy(camBase);
+  camera.lookAt(camLook);
+  camera.aspect = a; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+addEventListener('resize', resize); resize();
+
+scene.add(new THREE.HemisphereLight(0x8090b0, 0x101010, 0.55));
+const spot = new THREE.SpotLight(0xfff1d6, 260, 30, 0.72, 0.55, 1.6);
+spot.position.set(0, 13, 1); spot.castShadow = true;
+spot.shadow.mapSize.set(2048, 2048); spot.shadow.bias = -0.0004; spot.shadow.normalBias = 0.02;
+scene.add(spot, spot.target);
+const rimL = new THREE.PointLight(0x5a7cff, 18, 25); rimL.position.set(-9, 4, -6); scene.add(rimL);
+const rimR = new THREE.PointLight(0xff7a3a, 14, 25); rimR.position.set(9, 4, -6); scene.add(rimR);
+// 正面柔光：照亮对面角色的脸（不投影）
+const fill = new THREE.DirectionalLight(0xffe6cc, 0.9); fill.position.set(0, 6, 12); scene.add(fill);
+
+const RX = 6.4, RZ = 3.6;   // 桌面椭圆半轴
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
+}
+// 桌布
+const feltTex = canvasTex(1024, 1024, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, w / 2);
+  gr.addColorStop(0, '#1f7a4c'); gr.addColorStop(1, '#0b3d26');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  const img = g.getImageData(0, 0, w, h);
+  for (let i = 0; i < img.data.length; i += 4) { const n = (Math.random() - .5) * 14; img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+  g.strokeStyle = 'rgba(255,230,160,.28)'; g.lineWidth = 5;
+  g.beginPath(); g.arc(w / 2, h / 2, w * .4, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 2; g.beginPath(); g.arc(w / 2, h / 2, w * .385, 0, Math.PI * 2); g.stroke();
+});
+const felt = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.3, 128),
+  [new THREE.MeshStandardMaterial({ color: 0x0b3d26 }), new THREE.MeshStandardMaterial({ map: feltTex, roughness: 0.95 }), new THREE.MeshStandardMaterial({ color: 0x0b3d26 })]);
+felt.scale.set(RX, 1, RZ); felt.position.y = -0.15; felt.receiveShadow = true; scene.add(felt);
+// 皮质包边
+const rimPts = [];
+for (let i = 0; i < 160; i++) { const a = i / 160 * Math.PI * 2; rimPts.push(new THREE.Vector3(Math.cos(a) * (RX + 0.2), 0.02, Math.sin(a) * (RZ + 0.2))); }
+const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rimPts, true), 320, 0.34, 20, true),
+  new THREE.MeshStandardMaterial({ color: 0x3a1d12, roughness: 0.45, metalness: 0.1 }));
+rim.castShadow = true; rim.receiveShadow = true; scene.add(rim);
+const base = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.86, 1.1, 96), new THREE.MeshStandardMaterial({ color: 0x1b0f0a, roughness: 0.6 }));
+base.scale.set(RX + 0.4, 1, RZ + 0.4); base.position.y = -0.85; scene.add(base);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x14100e, roughness: 1 }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -1.4; floor.receiveShadow = true; scene.add(floor);
+
+/* ================= 座位 ================= */
+const N = 6;
+const seatAng = i => Math.PI / 2 + i * Math.PI * 2 / N;   // 0号在镜头前，顺时针行动
+const pt = (i, f, y = 0) => new THREE.Vector3(Math.cos(seatAng(i)) * RX * f, y, Math.sin(seatAng(i)) * RZ * f);
+const POT = new THREE.Vector3(0, 0, 1.05);
+const DECK = new THREE.Vector3(-3.25, 0.02, -0.15);
+
+const NAMES = ['你', '老K', 'Mia', '阿杰', 'Nova', '铁头'];
+const COLORS = [0, 0xc9483e, 0x3f8fd1, 0xd19d3f, 0x8a5bd1, 0x3fbf86];
+// aggr 激进度 / loose 松度 / bluff 诈唬率
+const STYLES = [null,
+  { aggr: .8, loose: .2, bluff: .10, tag: '紧凶', chat: .6 },
+  { aggr: .3, loose: .9, bluff: .04, tag: '跟注站', chat: .8 },
+  { aggr: 1.0, loose: .7, bluff: .22, tag: '疯子', chat: 1.5 },
+  { aggr: .2, loose: .0, bluff: .02, tag: '石头', chat: .25 },
+  { aggr: .55, loose: .45, bluff: .08, tag: '均衡', chat: .7 }];
+
+/* ================= 角色 ================= */
+// 每个 BOT 的外观：皮肤 / 外套 / 衬衫 / 发色 / 发型 / 配饰 / 椅子
+const LOOKS = [null,
+  { skin: 0xe6b894, coat: 0x5a1620, shirt: 0xf2efe8, tie: 0x111111, hair: 0x9a9a9a, style: 'slick', acc: ['fedora', 'mustache', 'bowtie'], chair: 0x4a1a14 },
+  { skin: 0xf3d2bb, coat: 0x1d4f8a, shirt: 0x9cc3ec, tie: null, hair: 0x4a2a18, style: 'long', acc: ['earrings', 'lips'], chair: 0x1a2a44 },
+  { skin: 0xd9a77e, coat: 0xd49a1e, shirt: 0x222222, tie: null, hair: 0xff7a1a, style: 'spiky', acc: ['shades', 'chain', 'hood'], chair: 0x3a2a10 },
+  { skin: 0x8a5a3c, coat: 0x4b2e78, shirt: 0x2a2236, tie: null, hair: 0x1a1a1a, style: 'beanie', acc: ['phones', 'hood'], chair: 0x2a1c3a },
+  { skin: 0xe9be9a, coat: 0x2f6b48, shirt: 0xe8e2d0, tie: 0x8a2a1a, hair: 0x5a3a22, style: 'bald', acc: ['beard', 'glasses'], chair: 0x1c3324 },
+];
+const stdMat = (color, rough = 0.6, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
+function add(parent, geo, m, x = 0, y = 0, z = 0) { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); parent.add(o); return o; }
+const L1 = 0.48, L2 = 0.5;   // 上臂 / 前臂长度
+
+function buildCharacter(lk) {
+  const root = new THREE.Group();
+  const skin = stdMat(lk.skin, 0.55), coat = stdMat(lk.coat, 0.75), shirt = stdMat(lk.shirt, 0.7), hair = stdMat(lk.hair, 0.5);
+  const darkCoat = stdMat(new THREE.Color(lk.coat).multiplyScalar(0.45).getHex(), 0.8);
+  // 椅子
+  const leather = stdMat(lk.chair, 0.35, { metalness: 0.05 }), wood = stdMat(0x2a160c, 0.5);
+  add(root, new THREE.BoxGeometry(1.15, 1.25, 0.16), leather, 0, 0.2, -0.55);
+  add(root, new THREE.CylinderGeometry(0.08, 0.08, 1.2, 16), wood, 0, 0.84, -0.55).rotation.z = Math.PI / 2;
+  add(root, new THREE.BoxGeometry(1.15, 0.16, 0.9), leather, 0, -0.5, -0.12);
+  // 下半身（大部分被桌沿挡住）
+  add(root, new THREE.BoxGeometry(0.78, 0.3, 0.55), darkCoat, 0, -0.3, -0.08);
+  for (const s of [-1, 1]) add(root, new THREE.CapsuleGeometry(0.14, 0.45, 4, 10), darkCoat, s * 0.2, -0.32, 0.28).rotation.x = Math.PI / 2;
+
+  // 上半身以腰为轴，可前倾 / 后靠 / 侧转
+  const spine = new THREE.Group(); spine.position.y = -0.2; root.add(spine);
+  const prof = [[0, 0], [0.3, 0], [0.35, 0.3], [0.39, 0.72], [0.45, 0.98], [0.4, 1.1], [0.2, 1.18], [0, 1.2]].map(([r, y]) => new THREE.Vector2(r, y));
+  add(spine, new THREE.LatheGeometry(prof, 28), coat).scale.z = 0.68;
+  // 衬衫 V 领
+  const vee = add(spine, new THREE.CylinderGeometry(0.2, 0.02, 0.5, 3, 1), shirt, 0, 0.9, 0.235);
+  vee.rotation.set(-0.12, Math.PI, 0); vee.scale.set(1, 1, 0.25);
+  if (lk.tie && !lk.acc.includes('bowtie')) add(spine, new THREE.BoxGeometry(0.07, 0.36, 0.02), stdMat(lk.tie, 0.5), 0, 0.88, 0.27).rotation.x = -0.12;
+  if (lk.acc.includes('bowtie')) for (const s of [-1, 1]) add(spine, new THREE.ConeGeometry(0.05, 0.1, 4), stdMat(lk.tie, 0.4), s * 0.05, 1.1, 0.24).rotation.z = s * Math.PI / 2;
+  if (lk.acc.includes('hood')) { const h = add(spine, new THREE.TorusGeometry(0.24, 0.09, 10, 24), coat, 0, 1.12, -0.1); h.rotation.x = Math.PI / 2 + 0.5; h.scale.set(1.1, 0.85, 1); }
+  else for (const s of [-1, 1]) add(spine, new THREE.BoxGeometry(0.1, 0.42, 0.03), darkCoat, s * 0.13, 0.9, 0.245).rotation.set(-0.12, 0, s * 0.32);   // 翻领
+  if (lk.acc.includes('chain')) add(spine, new THREE.TorusGeometry(0.19, 0.018, 8, 32), stdMat(0xffc84a, 0.25, { metalness: 0.9 }), 0, 0.98, 0.12).rotation.x = Math.PI / 2 - 0.55;
+  // 脖子 + 头
+  add(spine, new THREE.CylinderGeometry(0.1, 0.11, 0.25, 16), skin, 0, 1.24, 0);
+  if (lk.acc.includes('phones')) add(spine, new THREE.TorusGeometry(0.17, 0.035, 8, 24), stdMat(0x18c0a0, 0.4), 0, 1.22, 0.03).rotation.x = Math.PI / 2 - 0.2;
+  const head = new THREE.Group(); head.position.y = 1.5; spine.add(head);
+  add(head, new THREE.SphereGeometry(0.28, 32, 24), skin).scale.set(0.93, 1.08, 1);
+  add(head, new THREE.SphereGeometry(0.2, 20, 12), skin, 0, -0.12, 0.05).scale.set(1, 0.8, 1);   // 下颌
+  for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.065, 12, 10), skin, s * 0.26, 0, -0.01).scale.set(0.45, 1, 0.75);   // 耳
+  add(head, new THREE.SphereGeometry(0.045, 12, 10), skin, 0, -0.03, 0.29).scale.set(0.85, 1, 1.25);   // 鼻
+  const white = stdMat(0xffffff, 0.25), iris = stdMat(0x2a1a10, 0.3), browM = stdMat(lk.hair, 0.6);
+  const eyes = [], brows = [];
+  for (const s of [-1, 1]) {
+    const e = new THREE.Group(); e.position.set(s * 0.1, 0.05, 0.235); head.add(e);
+    add(e, new THREE.SphereGeometry(0.052, 16, 12), white).scale.z = 0.6;
+    add(e, new THREE.SphereGeometry(0.028, 12, 10), iris, 0, 0, 0.026);
+    eyes.push(e);
+    brows.push(add(head, new THREE.BoxGeometry(0.12, 0.026, 0.03), browM, s * 0.1, 0.14, 0.255));
+  }
+  const mouth = add(head, new THREE.TorusGeometry(0.06, 0.013, 6, 16, Math.PI), stdMat(lk.acc.includes('lips') ? 0xc0303a : 0x6a2a24, 0.5), 0, -0.15, 0.255);
+  // 发型
+  const cap = (r, th, y, rx) => { const c = add(head, new THREE.SphereGeometry(r, 28, 16, 0, Math.PI * 2, 0, th), hair, 0, y, 0); c.rotation.x = rx; return c; };
+  if (lk.style === 'slick') cap(0.3, Math.PI * 0.42, 0.03, -0.45);
+  if (lk.style === 'long') {
+    cap(0.305, Math.PI * 0.5, 0.02, -0.35);
+    add(head, new THREE.CapsuleGeometry(0.22, 0.42, 6, 16), hair, 0, -0.28, -0.12).scale.set(1.3, 1, 0.55);
+    for (const s of [-1, 1]) add(head, new THREE.CapsuleGeometry(0.07, 0.4, 4, 10), hair, s * 0.25, -0.2, 0.03);
+  }
+  if (lk.style === 'spiky') {
+    cap(0.295, Math.PI * 0.4, 0.04, -0.35);
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2;
+      add(head, new THREE.ConeGeometry(0.07, 0.24, 8), hair, Math.sin(a) * 0.13, 0.3, Math.cos(a) * 0.13 - 0.03).rotation.set(Math.cos(a) * 0.55, 0, -Math.sin(a) * 0.55);
+    }
+  }
+  if (lk.style === 'beanie') {
+    const bm = stdMat(0xc23a5a, 0.85);
+    add(head, new THREE.SphereGeometry(0.31, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.48), bm, 0, 0.04, 0).rotation.x = -0.2;
+    add(head, new THREE.TorusGeometry(0.29, 0.045, 8, 32), bm, 0, 0.07, -0.02).rotation.x = Math.PI / 2 - 0.2;
+    add(head, new THREE.SphereGeometry(0.07, 12, 10), stdMat(0xf0e6d8, 0.9), 0, 0.37, -0.06);
+  }
+  if (lk.acc.includes('fedora')) {
+    const hm = stdMat(0x2a2420, 0.7), hat = new THREE.Group(); hat.position.set(0, 0.24, -0.02); hat.rotation.set(-0.12, 0, 0.08); head.add(hat);
+    add(hat, new THREE.CylinderGeometry(0.46, 0.46, 0.025, 32), hm);
+    add(hat, new THREE.CylinderGeometry(0.24, 0.28, 0.24, 24), hm, 0, 0.12, 0);
+    add(hat, new THREE.CylinderGeometry(0.283, 0.283, 0.05, 24), stdMat(0x8a1a22, 0.5), 0, 0.03, 0);
+  }
+  if (lk.acc.includes('mustache')) for (const s of [-1, 1]) add(head, new THREE.CapsuleGeometry(0.022, 0.07, 4, 8), hair, s * 0.045, -0.09, 0.275).rotation.z = s * 1.2;
+  if (lk.acc.includes('beard')) {
+    add(head, new THREE.SphereGeometry(0.235, 24, 12, 0, Math.PI * 2, Math.PI * 0.45, Math.PI * 0.55), hair, 0, -0.08, 0.03).scale.set(1.05, 1.15, 1.05);
+    add(head, new THREE.CapsuleGeometry(0.03, 0.12, 4, 8), hair, 0, -0.1, 0.27).rotation.z = Math.PI / 2;
+  }
+  if (lk.acc.includes('glasses')) {
+    const gm = stdMat(0x222222, 0.3, { metalness: 0.6 });
+    for (const s of [-1, 1]) add(head, new THREE.TorusGeometry(0.065, 0.011, 8, 24), gm, s * 0.1, 0.05, 0.29);
+    add(head, new THREE.BoxGeometry(0.07, 0.012, 0.012), gm, 0, 0.06, 0.29);
+  }
+  if (lk.acc.includes('shades')) {
+    const sm = stdMat(0x0a0a0a, 0.1, { metalness: 0.8 });
+    for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.15, 0.075, 0.02), sm, s * 0.1, 0.05, 0.29);
+    add(head, new THREE.BoxGeometry(0.4, 0.02, 0.02), sm, 0, 0.08, 0.29);
+  }
+  if (lk.acc.includes('earrings')) for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.025, 10, 8), stdMat(0xffd060, 0.2, { metalness: 1 }), s * 0.26, -0.08, 0.01);
+
+  // 手臂：上臂 + 前臂，每帧用解析 IK 把圆柱摆到 肩→肘→手
+  const arms = [-1, 1].map(s => {
+    const S = new THREE.Vector3(s * 0.42, 1.04, 0);
+    add(spine, new THREE.SphereGeometry(0.135, 16, 12), coat, S.x, S.y, S.z);
+    const up = add(spine, new THREE.CylinderGeometry(0.105, 0.09, 1, 14), coat);
+    const fore = add(spine, new THREE.CylinderGeometry(0.09, 0.075, 1, 14), coat);
+    const elbow = add(spine, new THREE.SphereGeometry(0.093, 12, 10), coat);
+    const cuff = add(spine, new THREE.CylinderGeometry(0.08, 0.08, 0.05, 14), shirt);
+    const hand = add(spine, new THREE.SphereGeometry(0.075, 14, 10), skin); hand.scale.set(1, 0.65, 1.35);
+    return { s, S, up, fore, elbow, cuff, hand, T: new THREE.Vector3(s * 0.3, 0.42, 0.85) };
+  });
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  root.userData = { spine, head, eyes, brows, mouth, arms, react: '', reactT: -9, blinkT: 2 + Math.random() * 3, yaw: 0, pitch: 0, lean: 0, mood: 0, brow: 0 };
+  return root;
+}
+
+const _Y = new THREE.Vector3(0, 1, 0), _Z = new THREE.Vector3(0, 0, 1);
+const _d = new THREE.Vector3(), _p = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _seg = new THREE.Vector3();
+function segment(m, A, B) { _seg.subVectors(B, A); m.position.addVectors(A, B).multiplyScalar(0.5); m.scale.set(1, _seg.length(), 1); m.quaternion.setFromUnitVectors(_Y, _seg.normalize()); }
+function solveArm(a, T) {   // T 为 spine 局部坐标
+  _d.subVectors(T, a.S); const len = THREE.MathUtils.clamp(_d.length(), 0.2, L1 + L2 - 0.002); _d.normalize();
+  const ang = Math.acos(THREE.MathUtils.clamp((L1 * L1 + len * len - L2 * L2) / (2 * L1 * len), -1, 1));
+  _p.set(a.s * 0.7, -1, -0.5).normalize(); _p.addScaledVector(_d, -_p.dot(_d)).normalize();   // 肘部朝外、下、后
+  _E.copy(a.S).addScaledVector(_d, Math.cos(ang) * L1).addScaledVector(_p, Math.sin(ang) * L1);
+  _H.copy(a.S).addScaledVector(_d, len);
+  segment(a.up, a.S, _E); segment(a.fore, _E, _H); a.elbow.position.copy(_E);
+  _seg.subVectors(_H, _E).normalize();
+  a.hand.position.copy(_H).addScaledVector(_seg, 0.06); a.hand.quaternion.setFromUnitVectors(_Z, _seg);
+  a.cuff.position.copy(_H).addScaledVector(_seg, -0.01); a.cuff.quaternion.setFromUnitVectors(_Y, _seg);
+}
+
+const avatars = [];
+for (let i = 1; i < N; i++) {
+  const g = buildCharacter(LOOKS[i]);
+  const dir = pt(i, 1).normalize();
+  g.position.copy(pt(i, 1)).addScaledVector(dir, 1.25).setY(-0.15);
+  g.lookAt(0, -0.15, 0);
+  g.scale.setScalar(1.3);
+  scene.add(g); avatars[i] = g;
+}
+
+const _inv = new THREE.Matrix4(), _tl = new THREE.Vector3(), _w = new THREE.Vector3(), HUMAN_EYE = new THREE.Vector3(0, 1, 4.8);
+// 每帧驱动角色：视线、呼吸、眨眼、表情、手部动作
+function animateCharacters(t, dt) {
+  const k = Math.min(1, dt * 7);
+  avatars.forEach((g, i) => {
+    if (!g || !g.visible) return;
+    const u = g.userData, p = P[i], rt = t - u.reactT;
+    const active = i === activeSeat;
+    // 视线：轮到自己看手牌，否则看当前行动者，没人行动时看底池
+    if (active) _w.copy(pt(i, 0.8));
+    else if (activeSeat > 0) _w.copy(avatars[activeSeat].position).setY(1.2);
+    else if (activeSeat === 0) _w.copy(HUMAN_EYE);
+    else _w.copy(POT);
+    _tl.copy(_w); g.worldToLocal(_tl);
+    const tYaw = THREE.MathUtils.clamp(Math.atan2(_tl.x, _tl.z), -1.1, 1.1);
+    let tPitch = THREE.MathUtils.clamp(Math.atan2(1.3 - _tl.y, Math.hypot(_tl.x, _tl.z)) * 0.8, -0.2, 0.45);
+    let tLean = 0.06, mood = 0, brow = 0;
+    const tgt = [new THREE.Vector3(-0.3, 0.12, 0.86), new THREE.Vector3(0.3, 0.12, 0.86)];   // 默认：双手搭在桌沿
+    if (active) { tgt[1].set(0.07, 0.95, 0.42); tPitch = 0.3; brow = -0.15; }               // 思考：右手托腮
+    if (p.folded) { tLean = -0.18; tgt[0].set(-0.22, -0.12, 0.5); tgt[1].set(0.22, -0.12, 0.5); tPitch = 0.08; }   // 后靠，手放腿上
+    if (u.react === 'push' && rt < 0.9) {   // 推筹码
+      const e = Math.sin(rt / 0.9 * Math.PI); tgt[1].lerp(_tl.set(0.12, 0.05, 1.55), e); tLean += e * 0.25; brow = -0.3;
+    }
+    if (u.react === 'win') {
+      if (rt < 2.2) {   // 举双手庆祝
+        const e = Math.min(1, rt * 4) * (rt > 1.8 ? (2.2 - rt) / 0.4 : 1), w = Math.sin(rt * 10) * 0.12;
+        tgt[0].lerp(_tl.set(-0.55, 1.9 + w, 0.25), e); tgt[1].lerp(_tl.set(0.55, 1.9 - w, 0.25), e); tLean -= e * 0.12; tPitch -= e * 0.3;
+      }
+      if (rt < 5) { mood = 1; brow = 0.25; }
+    }
+    if (u.react === 'lose' && rt < 4) { mood = -1; brow = 0.3; tPitch = 0.45; tLean = -0.05; tgt[0].set(-0.1, 0.9, 0.45); tgt[1].set(0.1, 0.9, 0.45); }   // 捂脸
+    if (u.react === 'allin' && rt < 3) { brow = -0.4; mood = STYLES[i].aggr > .7 ? 0.6 : 0; }
+    if (STYLES[i].tag === '石头') mood *= 0.3;   // 扑克脸
+    u.yaw += (tYaw - u.yaw) * k; u.pitch += (tPitch - u.pitch) * k; u.lean += (tLean - u.lean) * k;
+    u.mood += (mood - u.mood) * k * 0.6; u.brow += (brow - u.brow) * k;
+    u.spine.rotation.set(u.lean, u.yaw * 0.3, 0);
+    u.spine.scale.y = 1 + Math.sin(t * 1.6 + i) * 0.008;   // 呼吸
+    u.head.rotation.set(u.pitch, u.yaw * 0.7, Math.sin(t * 0.7 + i * 2) * 0.04);
+    // 眨眼
+    u.blinkT -= dt; if (u.blinkT < 0) u.blinkT = 2 + Math.random() * 4;
+    u.eyes.forEach(e => e.scale.y = u.blinkT < 0.12 ? 0.1 : 1);
+    u.brows.forEach((b, j) => { b.rotation.z = (j ? 1 : -1) * u.brow * 0.6; b.position.y = 0.14 + u.brow * 0.015; });
+    // 嘴：mood 1 = 笑，-1 = 撇嘴，0 = 一字
+    u.mouth.rotation.z = u.mood >= 0 ? Math.PI : 0;
+    u.mouth.scale.set(1, 0.15 + Math.abs(u.mood) * 0.85, 1);
+    u.mouth.position.y = u.mood >= 0 ? -0.15 + u.mood * 0.02 : -0.17;
+    // 手的目标是 root 局部坐标，换到 spine 局部，手就会钉在桌上不随身体前倾漂移
+    u.spine.updateMatrix(); _inv.copy(u.spine.matrix).invert();
+    u.arms.forEach((a, j) => { a.T.lerp(tgt[j], k); solveArm(a, _tl.copy(a.T).applyMatrix4(_inv)); });
+  });
+}
+// 行动者光圈
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.75, 0.9, 48), new THREE.MeshBasicMaterial({ color: 0xffcf5a, transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+ring.rotation.x = -Math.PI / 2; ring.scale.set(1.3, 1, 1); ring.visible = false; scene.add(ring);
+// 庄家按钮
+const dBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.07, 32), [
+  new THREE.MeshStandardMaterial({ color: 0xdddddd }),
+  new THREE.MeshStandardMaterial({ map: canvasTex(128, 128, (g) => { g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#111'; g.font = 'bold 80px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('D', 64, 68); }) }),
+  new THREE.MeshStandardMaterial({ color: 0xdddddd })]);
+dBtn.castShadow = true; dBtn.position.set(0, 0.035, 0); scene.add(dBtn);
+
+/* ================= 卡牌 ================= */
+const CW = 0.82, CH = 1.15;
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+const rk = r => RANKS[r] || String(r);
+const cardStr = id => rk(id >> 2) + SUITS[id & 3];
+const texCache = {};
+function rr(g, x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function cardTex(id) {
+  if (texCache[id]) return texCache[id];
+  const r = id >> 2, s = id & 3, red = s === 1 || s === 2;
+  return texCache[id] = canvasTex(256, 360, (g, w, h) => {
+    g.fillStyle = '#f7f4ec'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#d8d2c2'; g.lineWidth = 6; rr(g, 6, 6, w - 12, h - 12, 18); g.stroke();
+    g.fillStyle = red ? '#d0202e' : '#161616';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    const corner = () => { g.font = 'bold 64px Georgia,serif'; g.fillText(rk(r), 46, 54); g.font = '50px serif'; g.fillText(SUITS[s], 46, 108); };
+    corner(); g.save(); g.translate(w, h); g.rotate(Math.PI); corner(); g.restore();
+    if (r > 10) { g.font = 'bold 120px Georgia,serif'; g.fillText(rk(r), w / 2, h / 2 - 20); g.font = '70px serif'; g.fillText(SUITS[s], w / 2, h / 2 + 68); }
+    else { g.font = '150px serif'; g.fillText(SUITS[s], w / 2, h / 2 + 8); }
+  });
+}
+const backTex = canvasTex(256, 360, (g, w, h) => {
+  g.fillStyle = '#f2efe6'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#7a1424'; rr(g, 14, 14, w - 28, h - 28, 14); g.fill();
+  g.strokeStyle = 'rgba(255,210,120,.55)'; g.lineWidth = 2;
+  for (let k = -h; k < w + h; k += 18) { g.beginPath(); g.moveTo(k, 14); g.lineTo(k + h, h); g.stroke(); g.beginPath(); g.moveTo(k + h, 14); g.lineTo(k, h); g.stroke(); }
+  g.strokeStyle = '#ffd27a'; g.lineWidth = 6; rr(g, 26, 26, w - 52, h - 52, 10); g.stroke();
+  g.clearRect(0, 0, 0, 0);
+});
+const cardGeo = new THREE.BoxGeometry(CW, 0.012, CH);
+const edgeMat = new THREE.MeshStandardMaterial({ color: 0xeeeae0 });
+const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.55 });
+const liveCards = [];
+function makeCard(id) {
+  const front = new THREE.MeshStandardMaterial({ map: cardTex(id), roughness: 0.4 });
+  const m = new THREE.Mesh(cardGeo, [edgeMat, edgeMat, front, backMat, edgeMat, edgeMat]);
+  m.castShadow = true; m.userData = { front, id };
+  m.position.copy(DECK); m.rotation.set(0, 0, Math.PI);
+  scene.add(m); liveCards.push(m); return m;
+}
+// 牌堆
+const deckMesh = new THREE.Mesh(new THREE.BoxGeometry(CW, 0.35, CH), [edgeMat, edgeMat, backMat, edgeMat, edgeMat, edgeMat]);
+deckMesh.position.copy(DECK).setY(0.175); deckMesh.castShadow = true; scene.add(deckMesh);
+
+/* ================= 筹码 ================= */
+const DEN = [[500, '#6b33b8'], [100, '#1c1c1c'], [25, '#1f9a4a'], [5, '#c8262f'], [1, '#e6e6e6']];
+const chipGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.055, 28);
+const chipMats = {};
+function chipMat(col) {
+  if (chipMats[col]) return chipMats[col];
+  const side = canvasTex(256, 16, (g, w, h) => { g.fillStyle = col; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; for (let k = 0; k < 8; k++) g.fillRect(k * 32 + 8, 0, 12, h); });
+  const top = canvasTex(128, 128, (g, w, h) => {
+    g.fillStyle = col; g.fillRect(0, 0, w, h); g.strokeStyle = '#fff'; g.lineWidth = 10; g.setLineDash([14, 14]);
+    g.beginPath(); g.arc(64, 64, 52, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); g.lineWidth = 3;
+    g.beginPath(); g.arc(64, 64, 32, 0, Math.PI * 2); g.stroke();
+  });
+  const s = new THREE.MeshStandardMaterial({ map: side, roughness: 0.4 }), t = new THREE.MeshStandardMaterial({ map: top, roughness: 0.4 });
+  return chipMats[col] = [s, t, t];
+}
+function chipStack(amount) {
+  const g = new THREE.Group(); let rem = amount; const cols = [];
+  for (const [v, c] of DEN) { const n = Math.floor(rem / v); rem -= n * v; if (n) cols.push([c, n]); }
+  const perRow = Math.min(3, cols.length);
+  cols.forEach(([c, n], k) => {
+    const x = (k % 3 - (perRow - 1) / 2) * 0.35, z = Math.floor(k / 3) * 0.35;
+    for (let j = 0; j < Math.min(n, 14); j++) {
+      const m = new THREE.Mesh(chipGeo, chipMat(c));
+      m.position.set(x + (Math.random() - .5) * 0.02, 0.028 + j * 0.056, z + (Math.random() - .5) * 0.02);
+      m.rotation.y = Math.random() * 6; m.castShadow = true; g.add(m);
+    }
+  });
+  scene.add(g); return g;
+}
+function drop(o) { if (!o) return; scene.remove(o); }
+
+/* ================= 彩带粒子 ================= */
+const CONF_N = 180;
+const conf = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.13, 0.08), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), CONF_N);
+conf.frustumCulled = false; scene.add(conf);
+const confP = [], dummy = new THREE.Object3D();
+const CONF_COL = [0xffcf5a, 0xff5468, 0x3ddc84, 0x5aa8ff, 0xffffff].map(c => new THREE.Color(c));
+for (let k = 0; k < CONF_N; k++) {
+  confP.push({ p: new THREE.Vector3(), v: new THREE.Vector3(), r: new THREE.Vector3(), w: new THREE.Vector3(), life: 0 });
+  conf.setColorAt(k, CONF_COL[k % CONF_COL.length]);
+}
+function burst(at, n = 140) {
+  let c = 0;
+  for (const q of confP) {
+    if (q.life > 0) continue; if (c++ >= n) break;
+    q.p.copy(at); q.v.set((Math.random() - .5) * 6, 4 + Math.random() * 5, (Math.random() - .5) * 5);
+    q.r.set(Math.random() * 6, Math.random() * 6, 0); q.w.set((Math.random() - .5) * 16, (Math.random() - .5) * 16, 0);
+    q.life = 2.4 + Math.random();
+  }
+}
+function stepConf(dt) {
+  for (let k = 0; k < CONF_N; k++) {
+    const q = confP[k];
+    if (q.life > 0) {
+      q.life -= dt; q.v.y -= 9 * dt; q.v.multiplyScalar(1 - 1.5 * dt); q.p.addScaledVector(q.v, dt);
+      if (q.p.y < 0.02) { q.p.y = 0.02; q.v.set(0, 0, 0); q.w.set(0, 0, 0); q.r.x = Math.PI / 2; }
+      q.r.addScaledVector(q.w, dt);
+    }
+    dummy.position.copy(q.p); dummy.rotation.set(q.r.x, q.r.y, 0);
+    dummy.scale.setScalar(q.life > 0 ? Math.min(1, q.life) : 0);
+    dummy.updateMatrix(); conf.setMatrixAt(k, dummy.matrix);
+  }
+  conf.instanceMatrix.needsUpdate = true;
+}
+
+/* ================= 音效（WebAudio 现合成，无外部资源） ================= */
+let AC = null, muted = false, noiseBuf = null;
+function unlockAudio() {
+  if (!AC) {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.5, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  if (AC.state === 'suspended') AC.resume();
+}
+addEventListener('pointerdown', unlockAudio); addEventListener('keydown', unlockAudio);
+function tone(f, t0, dur, type = 'sine', vol = 0.2, f2) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(t0, dur, freq, q = 1, vol = 0.25, type = 'bandpass') {
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t0); s.stop(t0 + dur + 0.02);
+}
+/* ================= 外部资源（assets/ 下有文件就替换，没有就保留程序化版本） ================= */
+const ASSET = 'assets/';
+// 音效保持 WebAudio 合成；只有背景音乐走外部文件
+const bgm = new Audio(); bgm.loop = true; bgm.volume = 0.32; bgm.preload = 'auto';
+let bgmReady = false, musicOn = true;
+bgm.addEventListener('canplaythrough', () => { bgmReady = true; $('#tMus').hidden = false; syncBgm(); }, { once: true });
+bgm.src = ASSET + 'bgm.mp3';
+function syncBgm() {
+  if (!bgmReady) return;
+  if (musicOn && AC && AC.state === 'running') bgm.play().catch(() => {}); else bgm.pause();
+}
+addEventListener('pointerdown', syncBgm); addEventListener('keydown', syncBgm);
+// 贴图：WebGL 不允许在 file:// 下上传本地图片（跨源），所以只在 http(s) 下尝试
+const canTex = location.protocol.startsWith('http');
+function loadTex(file, apply) {
+  if (!canTex) return;
+  new THREE.TextureLoader().load(ASSET + file, t => {
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); apply(t);
+  }, undefined, () => {});
+}
+
+function sfx(kind) {
+  if (muted || !AC || AC.state !== 'running') return;
+  const t = AC.currentTime;
+  switch (kind) {
+    case 'card': noise(t, 0.07, 3200, 0.8, 0.22); break;
+    case 'flip': noise(t, 0.05, 2400, 1, 0.18); noise(t + 0.04, 0.06, 4200, 1, 0.12); break;
+    case 'chip': for (let k = 0; k < 3; k++) { const d = t + k * 0.035 + Math.random() * 0.01; tone(3200 + Math.random() * 900, d, 0.05, 'triangle', 0.07); noise(d, 0.03, 6000, 2, 0.08); } break;
+    case 'check': tone(170, t, 0.09, 'sine', 0.35, 90); tone(170, t + 0.11, 0.09, 'sine', 0.3, 90); break;
+    case 'fold': noise(t, 0.22, 900, 0.6, 0.16, 'lowpass'); break;
+    case 'allin': tone(70, t, 0.5, 'sine', 0.4, 45); tone(220, t, 0.4, 'sawtooth', 0.05, 440); break;
+    case 'turn': tone(880, t, 0.18, 'sine', 0.12); tone(1320, t + 0.09, 0.22, 'sine', 0.1); break;
+    case 'win': [523, 659, 784, 1046].forEach((f, k) => tone(f, t + k * 0.09, 0.35, 'triangle', 0.14)); break;
+    case 'lose': [392, 330, 262].forEach((f, k) => tone(f, t + k * 0.14, 0.35, 'triangle', 0.1)); break;
+  }
+}
+
+/* ================= 补间 ================= */
+const tweens = [];
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function tween(o, { pos, rot, dur = 420, arc = 0 }) {
+  // 打断旧补间时先落到终点，避免物体卡在半空
+  for (let k = tweens.length - 1; k >= 0; k--) if (tweens[k].o === o) { const w = tweens[k]; o.position.copy(w.p1); o.rotation.set(...w.r1); w.res(); tweens.splice(k, 1); }
+  if (typeof pos === 'function') pos = pos();   // 相对目标在落位后再计算
+  return new Promise(res => tweens.push({
+    o, p0: o.position.clone(), p1: pos ? pos.clone() : o.position.clone(),
+    r0: [o.rotation.x, o.rotation.y, o.rotation.z], r1: rot || [o.rotation.x, o.rotation.y, o.rotation.z],
+    t: 0, dur: dur / spd(), arc, res
+  }));
+}
+function stepTweens(dt) {
+  for (let k = tweens.length - 1; k >= 0; k--) {
+    const w = tweens[k]; w.t += dt * 1000; const a = Math.min(1, w.t / w.dur), e = ease(a);
+    w.o.position.lerpVectors(w.p0, w.p1, e); w.o.position.y += Math.sin(Math.PI * a) * w.arc;
+    w.o.rotation.set(...w.r0.map((v, j) => v + (w.r1[j] - v) * e));
+    if (a >= 1) { tweens.splice(k, 1); w.res(); }
+  }
+}
+// speed：单手内的临时加速（如你弃牌后）；speedBase：玩家选择的全局速度
+let speed = 1, speedBase = TEST ? 6 : 1;
+const spd = () => speed * speedBase;
+const sleep = ms => new Promise(r => setTimeout(r, ms / spd()));
+
+/* ================= 牌力评估 ================= */
+function eval5(c) {
+  const r = c.map(x => x >> 2).sort((a, b) => b - a);
+  const s0 = c[0] & 3; let fl = true; for (let i = 1; i < 5; i++) if ((c[i] & 3) !== s0) { fl = false; break; }
+  const cnt = {}; for (const x of r) cnt[x] = (cnt[x] || 0) + 1;
+  const g = Object.keys(cnt).map(Number).sort((a, b) => cnt[b] - cnt[a] || b - a);
+  let st = 0;
+  if (g.length === 5) { if (r[0] - r[4] === 4) st = r[0]; else if (r[0] === 14 && r[1] === 5) st = 5; }
+  let cat, k;
+  if (st && fl) { cat = 8; k = [st]; }
+  else if (cnt[g[0]] === 4) { cat = 7; k = g; }
+  else if (cnt[g[0]] === 3 && cnt[g[1]] === 2) { cat = 6; k = g; }
+  else if (fl) { cat = 5; k = r; }
+  else if (st) { cat = 4; k = [st]; }
+  else if (cnt[g[0]] === 3) { cat = 3; k = g; }
+  else if (cnt[g[0]] === 2 && cnt[g[1]] === 2) { cat = 2; k = g; }
+  else if (cnt[g[0]] === 2) { cat = 1; k = g; }
+  else { cat = 0; k = r; }
+  let sc = cat; for (let i = 0; i < 5; i++) sc = sc * 16 + (k[i] || 0);
+  return sc;
+}
+const comboCache = {};
+function combos(n) {
+  if (comboCache[n]) return comboCache[n];
+  const out = [];
+  const rec = (st, acc) => { if (acc.length === 5) { out.push(acc.slice()); return; } for (let i = st; i < n; i++) { acc.push(i); rec(i + 1, acc); acc.pop(); } };
+  rec(0, []); return comboCache[n] = out;
+}
+function eval7(cs) {
+  let best = -1, bi = null;
+  for (const cb of combos(cs.length)) { const sc = eval5(cb.map(i => cs[i])); if (sc > best) { best = sc; bi = cb; } }
+  return { sc: best, best: bi.map(i => cs[i]) };
+}
+const CAT = ['高牌', '一对', '两对', '三条', '顺子', '同花', '葫芦', '四条', '同花顺'];
+function handName(sc) {
+  const cat = Math.floor(sc / 16 ** 5), k = [4, 3, 2, 1, 0].map(e => Math.floor(sc / 16 ** e) % 16);
+  switch (cat) {
+    case 8: return k[0] === 14 ? '皇家同花顺' : `同花顺 到${rk(k[0])}`;
+    case 7: return `四条 ${rk(k[0])}`;
+    case 6: return `葫芦 ${rk(k[0])}带${rk(k[1])}`;
+    case 5: return `同花 ${rk(k[0])}高`;
+    case 4: return `顺子 到${rk(k[0])}`;
+    case 3: return `三条 ${rk(k[0])}`;
+    case 2: return `两对 ${rk(k[0])}和${rk(k[1])}`;
+    case 1: return `一对 ${rk(k[0])}`;
+    default: return `高牌 ${rk(k[0])}`;
+  }
+}
+// 蒙特卡洛胜率
+const FULL = []; for (let r = 2; r <= 14; r++) for (let s = 0; s < 4; s++) FULL.push(r * 4 + s);
+function equity(hole, bd, nOpp, iters) {
+  const known = new Set([...hole, ...bd]);
+  const deck = FULL.filter(c => !known.has(c));
+  const need = 5 - bd.length + nOpp * 2; let win = 0;
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < need; i++) { const j = i + Math.floor(Math.random() * (deck.length - i)); const t = deck[i]; deck[i] = deck[j]; deck[j] = t; }
+    const b = bd.concat(deck.slice(0, 5 - bd.length));
+    let p = 5 - bd.length;
+    const my = eval7(hole.concat(b)).sc; let best = 0, ties = 0;
+    for (let o = 0; o < nOpp; o++) {
+      const sc = eval7([deck[p], deck[p + 1]].concat(b)).sc; p += 2;
+      if (sc > best) { best = sc; ties = 0; } if (sc === best) ties++;
+    }
+    if (my > best) win += 1; else if (my === best) win += 1 / (ties + 1);
+  }
+  return win / iters;
+}
+
+/* ================= UI ================= */
+const seatEls = [];
+for (let i = 1; i < N; i++) {
+  const d = document.createElement('div'); d.className = 'seat';
+  d.innerHTML = `<div class="say"></div><div class="act"></div><img class="pf" alt="${NAMES[i]}" hidden><div class="nm">${NAMES[i]} <span style="color:var(--dim);font-weight:400;font-size:11px">${STYLES[i].tag}</span></div><div class="ck"></div>`;
+  d._minTop = 78; $('#seats').appendChild(d); seatEls[i] = d;
+}
+const meEl = $('#me');
+function setAct(p, text, cls = '') {
+  const el = p.human ? null : seatEls[p.i].querySelector('.act');
+  if (el) { el.textContent = text; el.className = 'act ' + cls + (text ? ' on' : ''); }
+  if (p.human) { const m = $('#meAct'); m.textContent = text; m.className = 'act ' + cls + (text ? ' on' : ''); }
+}
+const LINES = {
+  win: ['承让了', '这把稳', '谢谢老板', '还有谁？', '运气也是实力'],
+  allin: ['梭了！', '全下，敢跟吗', '就这一把', '不服来战'],
+  raise: ['加！', '我不信你有', '来点刺激的'],
+  fold: ['这牌打不了', '让你一手', '溜了溜了'],
+  bust: ['我还会回来的', 'GG', '今天手气太差'],
+  bad: ['这都能中？', '河杀……', '离谱'],
+};
+function say(p, kind, prob = 0.4) {
+  if (p.human || Math.random() > prob * p.style.chat) return;
+  const el = seatEls[p.i].querySelector('.say'), arr = LINES[kind];
+  el.textContent = arr[Math.floor(Math.random() * arr.length)];
+  el.classList.add('on'); clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('on'), 2400 / Math.max(1, spd() * 0.6));
+}
+function react(i, type) { const g = avatars[i]; if (g) { g.userData.react = type; g.userData.reactT = clock.elapsedTime; } }
+function banner(t, s, ms = 2600) {
+  const b = $('#banner'); b.querySelector('.t').textContent = t; b.querySelector('.s').textContent = s;
+  b.classList.add('on'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('on'), ms / spd());
+}
+function floatDelta(p, d) {
+  const s = document.createElement('div'); s.className = 'delta';
+  s.textContent = (d > 0 ? '+' : '') + d; s.style.color = d > 0 ? 'var(--green)' : 'var(--red)';
+  (p.human ? meEl : seatEls[p.i]).appendChild(s); setTimeout(() => s.remove(), 1900);
+}
+let stats, vpipHand = false, street = '';
+function showStats() {
+  const pct = stats.hands ? Math.round(stats.vpip / stats.hands * 100) : 0;
+  $('#stat').textContent = `你：入池 ${pct}% · 赢 ${stats.wins} 手 · 最大 ${stats.best}`;
+}
+function refresh() {
+  for (const p of P) {
+    if (p.human) { $('#meChips').textContent = p.chips; continue; }
+    const el = seatEls[p.i];
+    el.querySelector('.ck').textContent = p.out ? '出局' : p.chips;
+    el.classList.toggle('folded', p.folded || p.out);
+  }
+  const potAll = pot + P.reduce((a, q) => a + q.bet, 0);
+  $('#potLbl').textContent = potAll ? `${street} · 底池 ${potAll}` : '';
+  $('#alive').textContent = P.filter(q => !q.out).length;
+}
+const logs = [];
+function log(t, hl) { if (TEST) console.log('[LOG] ' + t + ' | chips=' + P.map(q => q.chips + q.bet).join(',') + ' pot=' + pot); logs.unshift(`<div class="${hl ? 'hl' : ''}">${t}</div>`); logs.length = Math.min(logs.length, 14); $('#log').innerHTML = logs.join(''); }
+
+/* ================= 游戏状态 ================= */
+let P, dealer, board, pot, potGroup, currentBet, minRaise, raises, handNo, sb, bb, deck;
+function newGame() {
+  P = NAMES.map((name, i) => ({ i, name, human: i === 0, chips: 1000, hand: [], meshes: [], folded: false, allIn: false, out: false, bet: 0, total: 0, style: STYLES[i], betGroup: null }));
+  dealer = Math.floor(Math.random() * N); handNo = 0; pot = 0;
+  avatars.forEach(a => a && (a.visible = true));
+  stats = { hands: 0, vpip: 0, wins: 0, best: 0 }; showStats();
+  logs.length = 0; log('新的一局开始，每人 1000 筹码');
+}
+const inHand = q => !q.out && !q.folded;
+const canAct = q => !q.out && !q.folded && !q.allIn;
+const nextFrom = (i, pred) => { for (let k = 1; k <= N; k++) { const j = (i + k) % N; if (pred(P[j])) return j; } return -1; };
+
+function put(p, amt) {
+  amt = Math.min(amt, p.chips);
+  p.chips -= amt; p.bet += amt; p.total += amt;
+  if (p.chips === 0) p.allIn = true;
+  if (amt > 0) sfx('chip');
+  const old = p.betGroup; p.betGroup = null;
+  if (p.bet > 0) {
+    const g = chipStack(p.bet); const to = pt(p.i, p.human ? 0.52 : 0.56);
+    if (old) { g.position.copy(to); } else { g.position.copy(pt(p.i, 1.0, 0.4)); tween(g, { pos: to, dur: 320, arc: 0.4 }); }
+    p.betGroup = g;
+  }
+  drop(old); refresh();
+}
+
+function apply(p, a) {
+  const toCall = currentBet - p.bet;
+  if (a.type === 'raise' && a.to <= currentBet) a = { type: 'call' };
+  if (p.human && !board.length && a.type !== 'fold' && (a.type === 'raise' || toCall > 0)) vpipHand = true;
+  if (a.type === 'fold') {
+    p.folded = true; setAct(p, '弃牌', 'fold'); log(`${p.name} 弃牌`); sfx('fold');
+    if (toCall >= bb * 4) say(p, 'fold', 0.5);
+    p.meshes.forEach((m, k) => tween(m, { pos: () => m.position.clone().lerp(POT, 0.25).setY(0.012 + k * 0.03), rot: [0, m.rotation.y, Math.PI], dur: 350 }));
+    refresh(); return false;
+  }
+  if (a.type === 'call') {
+    if (toCall === 0) { setAct(p, '过牌', 'call'); log(`${p.name} 过牌`); sfx('check'); return false; }
+    put(p, toCall);
+    if (p.allIn) { setAct(p, '全下 ' + p.bet, 'allin'); log(`${p.name} 跟注全下 ${p.bet}`); sfx('allin'); react(p.i, 'push'); say(p, 'allin', 0.6); }
+    else { setAct(p, '跟注 ' + p.bet, 'call'); log(`${p.name} 跟注 ${p.bet}`); react(p.i, 'push'); }
+    return false;
+  }
+  // raise
+  const to = Math.min(a.to, p.bet + p.chips);
+  put(p, to - p.bet);
+  if (to - currentBet >= minRaise) minRaise = to - currentBet;
+  const wasZero = currentBet === 0;
+  currentBet = to; raises++;
+  const word = p.allIn ? '全下' : wasZero ? '下注' : '加注到';
+  setAct(p, word + ' ' + to, p.allIn ? 'allin' : 'raise'); log(`${p.name} ${word} ${to}`, p.allIn);
+  react(p.i, 'push');
+  if (p.allIn) { sfx('allin'); say(p, 'allin', 0.7); } else say(p, 'raise', 0.2);
+  return true;
+}
+
+async function botDecide(p) {
+  await sleep(450 + Math.random() * 650);
+  const opp = P.filter(q => q !== p && inHand(q)).length;
+  const eq = equity(p.hand, board, opp, board.length ? 260 : 200);
+  const st = p.style || STYLES[5], r = Math.random();
+  const toCall = currentBet - p.bet;
+  const potNow = pot + P.reduce((a, q) => a + q.bet, 0);
+  const fair = 1 / (opp + 1);
+  const strong = fair + (1 - fair) * (0.34 - st.aggr * 0.12);
+  const maxTo = p.bet + p.chips;
+  const raiseTo = frac => Math.min(maxTo, currentBet + Math.max(minRaise, Math.round((potNow + toCall) * frac / 5) * 5));
+  const capped = raises >= 4;
+  if (toCall === 0) {
+    if (!capped && eq > strong && r < 0.5 + st.aggr * 0.45) return { type: 'raise', to: raiseTo(0.45 + Math.random() * 0.55) };
+    if (!capped && r < st.bluff) return { type: 'raise', to: raiseTo(0.5) };
+    return { type: 'call' };
+  }
+  const odds = toCall / (potNow + toCall);
+  if (!capped && eq > strong + 0.12 && r < 0.3 + st.aggr * 0.5) return { type: 'raise', to: raiseTo(0.7 + Math.random() * 0.6) };
+  if (eq + st.loose * 0.09 > odds * 1.05) return { type: 'call' };
+  if (r < st.bluff * 0.5 && toCall < p.chips * 0.12) return { type: 'call' };
+  return { type: 'fold' };
+}
+
+let humanResolve = null;
+const range = $('#raiseRange');
+function humanDecide(p) {
+  const toCall = currentBet - p.bet, maxTo = p.bet + p.chips;
+  const potNow = pot + P.reduce((a, q) => a + q.bet, 0);
+  const minTo = Math.min(maxTo, currentBet + minRaise);
+  $('#bCall').firstChild.textContent = toCall === 0 ? '过牌' : toCall >= p.chips ? `全下跟注 ${p.chips}` : `跟注 ${toCall}`;
+  const canRaise = maxTo > currentBet && raises < 8;
+  $('#raiseBox').style.display = canRaise ? 'flex' : 'none';
+  range.min = minTo; range.max = maxTo; range.step = 5; range.value = minTo;
+  const upd = () => { const v = +range.value; $('#raiseAmt').textContent = v; $('#bRaise').firstChild.textContent = v >= maxTo ? '全下' : currentBet ? '加注到' : '下注'; };
+  range.oninput = upd; upd();
+  document.querySelectorAll('#raiseBox .bs').forEach(b => b.onclick = () => {
+    const f = +b.dataset.f; range.value = f > 10 ? maxTo : Math.max(minTo, Math.min(maxTo, currentBet + Math.round((potNow + toCall) * f / 5) * 5)); upd();
+  });
+  $('#ctrl').classList.add('on'); meEl.classList.add('active');
+  sfx('turn');
+  // 给玩家一点提示：当前胜率 vs 跟注所需胜率（底池赔率）
+  const opp = P.filter(q => q !== p && inHand(q)).length;
+  const eqv = equity(p.hand, board, opp, 500);
+  $('#meEq').textContent = `胜率 ≈ ${(eqv * 100).toFixed(0)}%（${opp} 名对手）` +
+    (toCall ? ` · 跟注需 ${(toCall / (potNow + toCall) * 100).toFixed(0)}%` : '');
+  $('#eqFill').style.width = (eqv * 100).toFixed(1) + '%';
+  return new Promise(res => {
+    humanResolve = a => { humanResolve = null; $('#ctrl').classList.remove('on'); meEl.classList.remove('active'); res(a); };
+    $('#bFold').onclick = () => humanResolve({ type: 'fold' });
+    $('#bCall').onclick = () => humanResolve({ type: 'call' });
+    $('#bRaise').onclick = () => humanResolve({ type: 'raise', to: +range.value });
+  });
+}
+addEventListener('keydown', e => {
+  if (humanResolve) {
+    if (e.key === 'f' || e.key === 'F') $('#bFold').click();
+    if (e.key === 'c' || e.key === 'C') $('#bCall').click();
+    if ((e.key === 'r' || e.key === 'R') && $('#raiseBox').style.display !== 'none') $('#bRaise').click();
+    if (e.key >= '1' && e.key <= '3') document.querySelectorAll('#raiseBox .bs')[+e.key - 1].click();
+  } else if (e.code === 'Space' && $('#next').classList.contains('on')) { e.preventDefault(); $('#next').click(); }
+});
+
+let activeSeat = -1;
+function setActive(p) {
+  activeSeat = p ? p.i : -1;
+  seatEls.forEach((el, i) => el && el.classList.toggle('active', i === activeSeat));
+  ring.visible = !!p;
+  if (p) ring.position.copy(pt(p.i, p.human ? 0.78 : 0.8, 0.006));
+}
+
+async function bettingRound(start) {
+  minRaise = bb; raises = 0;
+  const pending = new Set(P.filter(canAct).map(q => q.i));
+  if (pending.size === 0) return;
+  if (pending.size === 1 && P[[...pending][0]].bet >= currentBet) return;
+  let i = start;
+  while (pending.size && P.filter(inHand).length > 1) {
+    const p = P[i];
+    if (pending.has(i)) {
+      pending.delete(i);
+      if (canAct(p)) {
+        setActive(p);
+        const a = p.human && !auto ? await humanDecide(p) : await botDecide(p);
+        if (apply(p, a)) P.filter(canAct).forEach(q => q !== p && pending.add(q.i));
+        if (p.human && p.folded) speed = 2.2;
+      }
+    }
+    i = (i + 1) % N;
+  }
+  setActive(null);
+}
+
+async function collectBets() {
+  const moving = P.filter(q => q.betGroup);
+  if (moving.length) sfx('chip');
+  await Promise.all(moving.map(q => tween(q.betGroup, { pos: POT, dur: 380, arc: 0.3 })));
+  moving.forEach(q => { drop(q.betGroup); q.betGroup = null; });
+  P.forEach(q => { pot += q.bet; q.bet = 0; });
+  currentBet = 0;
+  drop(potGroup); potGroup = pot ? chipStack(pot) : null; if (potGroup) potGroup.position.copy(POT);
+  refresh();
+}
+
+async function dealHole() {
+  const order = []; let i = dealer;
+  for (let k = 0; k < N; k++) { i = nextFrom(i, q => !q.out); if (order.includes(i)) break; order.push(i); }
+  for (let round = 0; round < 2; round++) for (const j of order) {
+    const p = P[j], id = deck.pop(); p.hand.push(id);
+    const m = makeCard(id); p.meshes.push(m);
+    if (p.human) tween(m, { pos: new THREE.Vector3(round ? 0.5 : -0.5, 0.012 + round * 0.03, 2.85), rot: [0, round ? -0.08 : 0.08, Math.PI], dur: 380, arc: 0.6 });
+    else {
+      const a = seatAng(j), tang = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a)).multiplyScalar(round ? 0.24 : -0.24);
+      tween(m, { pos: pt(j, 0.8, 0.012 + round * 0.03).add(tang), rot: [0, Math.PI / 2 - a + (round ? -0.12 : 0.12), Math.PI], dur: 380, arc: 0.5 });
+    }
+    sfx('card');
+    await sleep(95);
+  }
+  await sleep(380);
+  const me = P[0];
+  if (!me.out) { me.meshes.forEach((m, k) => tween(m, { pos: new THREE.Vector3(k ? 0.5 : -0.5, 0.5 + k * 0.04, 2.85), rot: [0.72, k ? -0.08 : 0.08, 0], dur: 420, arc: 0.3 })); updateMeHand(); }
+}
+async function dealBoard(n) {
+  deck.pop();   // 烧牌
+  for (let k = 0; k < n; k++) {
+    const id = deck.pop(); board.push(id);
+    const m = makeCard(id);
+    sfx('card');
+    await tween(m, { pos: new THREE.Vector3((board.length - 3) * 1.02, 0.01, -0.15), rot: [0, 0, 0], dur: 420, arc: 0.7 });
+    sfx('flip');
+    await sleep(70);
+  }
+  street = ['', '', '', '翻牌', '转牌', '河牌'][board.length]; refresh();
+  log('公共牌: ' + board.map(cardStr).join(' '));
+  updateMeHand();
+}
+function updateMeHand() {
+  const me = P[0]; if (me.out || !me.hand.length) { $('#meHand').textContent = me.out ? '已出局' : '等待发牌'; return; }
+  const hc = me.hand.map(cardStr).join(' ');
+  let nm;
+  if (board.length) nm = handName(eval7(me.hand.concat(board)).sc);
+  else {
+    const [a, b] = me.hand.map(c => c >> 2).sort((x, y) => y - x);
+    nm = a === b ? `口袋对 ${rk(a)}` : `${rk(a)}${rk(b)} ${(me.hand[0] & 3) === (me.hand[1] & 3) ? '同花' : '杂色'}`;
+  }
+  $('#meHand').textContent = `${hc} · ${nm}`;
+  if (me.folded) $('#meHand').textContent += '（已弃）';
+}
+let revealed = false;
+async function reveal() {
+  if (revealed) return; revealed = true;
+  for (const p of P) if (inHand(p) && !p.human) p.meshes.forEach((m, k) => tween(m, { pos: () => m.position.clone().setY(0.012 + k * 0.03), rot: [0, 0, 0], dur: 450, arc: 0.4 }));
+  sfx('flip');
+  await sleep(500);
+}
+
+async function settle() {
+  const live = P.filter(inHand);
+  const won = new Array(N).fill(0);
+  let bestCards = [];
+  const sc = {};
+  if (live.length === 1) { won[live[0].i] = pot; log(`${live[0].name} 赢得 ${pot}（其他人弃牌）`, true); }
+  else {
+    street = '摊牌'; camFocus = 1; refresh();
+    await reveal(); for (const q of live) { const e = eval7(q.hand.concat(board)); sc[q.i] = e; setAct(q, handName(e.sc), 'call'); }
+    const levels = [...new Set(live.map(q => q.total))].sort((a, b) => a - b);
+    let prev = 0;
+    levels.forEach((L, li) => {
+      let amt = P.reduce((a, q) => a + Math.max(0, Math.min(q.total, L) - prev), 0);
+      if (li === levels.length - 1) amt += P.reduce((a, q) => a + Math.max(0, q.total - L), 0);
+      prev = L;
+      const elig = live.filter(q => q.total >= L);
+      const top = Math.max(...elig.map(q => sc[q.i].sc));
+      const ws = elig.filter(q => sc[q.i].sc === top);
+      const share = Math.floor(amt / ws.length);
+      ws.forEach((q, k) => won[q.i] += share + (k === 0 ? amt - share * ws.length : 0));
+      if (li === 0) bestCards = ws.flatMap(q => sc[q.i].best);
+    });
+    P.forEach(q => won[q.i] && log(`${q.name} 赢得 ${won[q.i]} · ${handName(sc[q.i].sc)}`, true));
+  }
+  // 摊牌：获胜的五张抬起发光，其余明牌压暗
+  if (live.length > 1) for (const m of liveCards) {
+    const id = m.userData.id;
+    if (!board.includes(id) && !live.some(q => q.hand.includes(id))) continue;
+    if (bestCards.includes(id)) {
+      m.userData.front.emissive = new THREE.Color(0x553300);
+      tween(m, { pos: () => m.position.clone().setY(m.position.y + 0.12), dur: 300 });
+    } else m.userData.front.color.setScalar(0.5);
+  }
+  // 横幅
+  const ws = P.filter(q => won[q.i]);
+  const top = ws.slice().sort((a, b) => won[b.i] - won[a.i])[0];
+  const title = ws.length > 1 ? ws.map(q => q.name).join(' / ') + ' 分池' : (top.human ? '你赢了' : `${top.name} 获胜`);
+  banner(title, live.length > 1 ? `${handName(sc[top.i].sc)} · +${won[top.i]}` : `其他人弃牌 · +${won[top.i]}`);
+  drop(potGroup); potGroup = null;
+  const flies = [];
+  P.forEach(q => {
+    if (!won[q.i]) return;
+    const g = chipStack(won[q.i]); g.position.copy(POT);
+    flies.push(tween(g, { pos: pt(q.i, 1.0, 0.1), dur: 650, arc: 0.8 }).then(() => drop(g)));
+    if (!(live.length > 1)) setAct(q, '+' + won[q.i], 'win'); else seatEls[q.i]?.classList.add('win');
+    if (q.human) setAct(q, '+' + won[q.i], 'win');
+    else { react(q.i, 'win'); say(q, 'win', 0.5); }
+  });
+  if (flies.length) sfx('chip');
+  if (won[0]) { sfx('win'); burst(new THREE.Vector3(0, 0.4, 2.4), won[0] >= 300 ? 160 : 70); }
+  else if (live.length > 1 && live.includes(P[0])) sfx('lose');
+  // 拿着两对以上还输了的 BOT 会抱怨
+  if (live.length > 1) live.forEach(q => { if (won[q.i] || q.human) return; react(q.i, 'lose'); if (sc[q.i].sc >= 2 * 16 ** 5) say(q, 'bad', 0.6); });
+  await Promise.all(flies);
+  P.forEach(q => q.chips += won[q.i]);
+  pot = 0; refresh();
+  P.forEach(q => { if (q.out) return; const d = q.chips - q.startChips; if (d) floatDelta(q, d); if (!q.chips && !q.human) say(q, 'bust', 5); });
+  if (won[0]) { $('#meEq').textContent = `本手赢得 +${won[0]}`; stats.wins++; stats.best = Math.max(stats.best, won[0]); }
+}
+
+async function playHand() {
+  handNo++;
+  const lvl = Math.floor((handNo - 1) / 10); sb = 10 * 2 ** lvl; bb = sb * 2;
+  $('#handNo').textContent = handNo; $('#blinds').textContent = `${sb}/${bb}`;
+  if (handNo > 1 && (handNo - 1) % 10 === 0) log(`盲注升级 → ${sb}/${bb}`, true);
+  // 清理上一手
+  liveCards.splice(0).forEach(m => { scene.remove(m); m.userData.front.dispose(); });
+  P.forEach(q => { q.hand = []; q.meshes = []; q.folded = false; q.allIn = false; q.bet = 0; q.total = 0; if (q.chips <= 0) q.out = true; q.startChips = q.chips; setAct(q, ''); });
+  if (!P[0].out) stats.hands++;
+  vpipHand = false; camFocus = 0; street = '翻牌前'; $('#eqFill').style.width = '0';
+  seatEls.forEach(el => el && el.classList.remove('win'));
+  P.forEach(q => { if (q.out && avatars[q.i]) avatars[q.i].visible = false; });
+  board = []; pot = 0; revealed = false; speed = 1; currentBet = 0;
+  deck = FULL.slice(); for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  $('#meEq').textContent = '';
+
+  dealer = nextFrom(dealer, q => !q.out);
+  const a = seatAng(dealer) + 0.42;
+  tween(dBtn, { pos: new THREE.Vector3(Math.cos(a) * RX * 0.72, 0.035, Math.sin(a) * RZ * 0.72), dur: 500, arc: 0.3 });
+  const alive = P.filter(q => !q.out).length;
+  const sbI = alive === 2 ? dealer : nextFrom(dealer, q => !q.out);
+  const bbI = nextFrom(sbI, q => !q.out);
+  log(`— 第 ${handNo} 手，庄家 ${P[dealer].name} —`);
+
+  await dealHole();
+  put(P[sbI], sb); setAct(P[sbI], '小盲 ' + P[sbI].bet);
+  put(P[bbI], bb); setAct(P[bbI], '大盲 ' + P[bbI].bet);
+  if (P[sbI].allIn) setAct(P[sbI], '全下 ' + P[sbI].bet, 'allin');
+  if (P[bbI].allIn) setAct(P[bbI], '全下 ' + P[bbI].bet, 'allin');
+  currentBet = bb;
+  await sleep(300);
+
+  await bettingRound(nextFrom(bbI, () => true));
+  for (const n of [3, 1, 1]) {
+    await collectBets();
+    if (P.filter(inHand).length <= 1) break;
+    P.forEach(q => inHand(q) && !q.allIn && setAct(q, ''));
+    if (P.filter(canAct).length <= 1) await reveal();
+    await dealBoard(n);
+    if (P.filter(canAct).length >= 2) await bettingRound(nextFrom(dealer, () => true));
+    else await sleep(600);
+  }
+  await collectBets();
+  await settle();
+  if (vpipHand) stats.vpip++;
+  showStats();
+  updateMeHand();
+}
+
+async function loop() {
+  while (true) {
+    await playHand();
+    const alive = P.filter(q => q.chips > 0);
+    if (P[0].chips <= 0 || alive.length <= 1) {
+      await sleep(1200);
+      const win = P[0].chips > 0;
+      $('#overTitle').textContent = win ? '你赢下了整张桌子' : '你出局了';
+      $('#overText').textContent = win ? `共 ${handNo} 手，5 个 BOT 全部清台。` : `坚持了 ${handNo} 手。` + (alive.length === 1 ? `最终赢家：${alive[0].name}` : '');
+      $('#over').classList.add('on');
+      return;
+    }
+    $('#next').classList.add('on');
+    await new Promise(res => {
+      const t = setTimeout(go, TEST ? 300 : (P[0].folded || auto) ? 2500 : 6000);
+      function go() { clearTimeout(t); $('#next').classList.remove('on'); $('#next').onclick = null; res(); }
+      $('#next').onclick = go;
+    });
+  }
+}
+$('#tSnd').onclick = () => { muted = !muted; $('#tSnd').textContent = muted ? '音效 关' : '音效 开'; };
+$('#tMus').onclick = () => { musicOn = !musicOn; $('#tMus').textContent = musicOn ? '音乐 开' : '音乐 关'; syncBgm(); };
+
+// 美术资源替换
+loadTex('felt.jpg', t => { felt.material[1].map = t; felt.material[1].needsUpdate = true; });
+loadTex('card_back.png', t => { backMat.map = t; backMat.needsUpdate = true; });
+loadTex('room.jpg', t => { scene.background = t; scene.fog = null; floor.visible = false; });
+for (let i = 1; i < N; i++) {   // 头像用 <img>，file:// 下也能显示
+  const img = new Image();
+  img.onload = () => { const el = seatEls[i].querySelector('.pf'); el.src = img.src; el.hidden = false; };
+  img.src = `${ASSET}portrait_${i}.png`;
+}
+const SPDS = [1, 2, 4]; let spdI = 0;
+$('#tSpd').onclick = () => { spdI = (spdI + 1) % SPDS.length; speedBase = SPDS[spdI]; $('#tSpd').textContent = `速度 ${speedBase}x`; };
+$('#tAuto').onclick = () => {
+  auto = !auto; $('#tAuto').classList.toggle('on', auto);
+  if (auto && humanResolve) { const r = humanResolve; botDecide(P[0]).then(r); }   // 正轮到你时立即交给 BOT
+};
+document.querySelectorAll('#side button').forEach(b => b.addEventListener('click', () => b.blur()));   // 防止空格误触
+$('#restart').onclick = () => { $('#over').classList.remove('on'); newGame(); refresh(); loop(); };
+
+/* ================= 渲染循环 ================= */
+const clock = new THREE.Clock(), v = new THREE.Vector3();
+function place(el, p3) {
+  v.copy(p3).project(camera);
+  el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px';
+  el.style.top = Math.max(el._minTop || 0, (1 - v.y) / 2 * innerHeight) + 'px';
+}
+const mouse = { x: 0, y: 0 }, camCur = new THREE.Vector3();
+addEventListener('pointermove', e => { mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1; });
+let camFocus = 0, camZoom = 0;
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  stepTweens(dt); stepConf(dt);
+  ring.material.opacity = 0.35 + Math.sin(t * 5) * 0.25;
+  animateCharacters(t, dt);
+  // 镜头：鼠标视差 + 摊牌时推近
+  camZoom += (camFocus - camZoom) * Math.min(1, dt * 2);
+  camCur.copy(camBase).lerp(POT, camZoom * 0.25);
+  camCur.x += mouse.x * 0.7; camCur.y -= mouse.y * 0.35;
+  camera.position.lerp(camCur, Math.min(1, dt * 4));
+  camera.lookAt(camLook);
+  for (let i = 1; i < N; i++) place(seatEls[i], _w.copy(avatars[i].position).setY(2.75));
+  place($('#potLbl'), POT.clone().setY(0.55));
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+newGame(); refresh(); frame(); loop();
+</script>
+</body>
+</html>

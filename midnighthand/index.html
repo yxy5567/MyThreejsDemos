@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>午夜之手 · Midnight Hand</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+:root{
+  --panel:rgba(12,16,28,.84); --line:rgba(255,255,255,.09);
+  --blue:#2f9bff; --red:#ff4058; --gold:#ffc84a; --orange:#ff8a1c; --text:#eef2ff; --dim:#8d97b5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#071015;color:var(--text);
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;user-select:none}
+canvas{display:block}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%),
+  repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);}
+.num{font-family:Bungee,Impact,sans-serif;letter-spacing:.5px}
+.box{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 5px 0 rgba(0,0,0,.4)}
+.lbl{font-size:12px;color:var(--dim);letter-spacing:1px}
+
+#side{position:fixed;left:16px;top:16px;bottom:16px;width:250px;display:flex;flex-direction:column;gap:10px;z-index:2}
+#title{font-family:Bungee,sans-serif;font-size:22px;line-height:1;text-align:center;padding:12px;
+  background:linear-gradient(135deg,#3a1030,#14203a);color:var(--gold);text-shadow:0 3px 0 #000}
+#title small{display:block;font-family:inherit;color:#d7c3ff;font-size:12px;margin-top:6px;letter-spacing:4px}
+#blind{text-align:center}
+#blind.boss{background:linear-gradient(160deg,rgba(90,10,40,.9),rgba(20,10,30,.9));border-color:#ff406055}
+#blindName{font-weight:700;font-size:16px}
+#bossDesc{font-size:12px;color:#ff9db0;min-height:0}
+#target{font-size:26px;color:var(--red)}
+#scoreBox{display:flex;justify-content:space-between;align-items:center}
+#score{font-size:28px}
+#handBox{text-align:center}
+#handName{font-weight:800;font-size:20px;min-height:28px}
+#handName .lv{font-size:12px;color:var(--dim);margin-left:4px}
+.cm{display:flex;align-items:center;gap:6px;margin-top:6px}
+.cm>div{flex:1;border-radius:10px;padding:6px 0;font-family:Bungee,sans-serif;font-size:24px;text-align:center;transition:transform .08s}
+#chips{background:var(--blue);box-shadow:0 4px 0 #1a5fa8}
+#mult{background:var(--red);box-shadow:0 4px 0 #a51c33}
+.cm span{font-family:Bungee;color:var(--red);font-size:20px}
+.bump{transform:scale(1.15)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{text-align:center;padding:8px}
+.stat .num{font-size:26px}
+#hands{color:var(--blue)} #discards{color:var(--red)}
+#money{color:var(--gold);font-size:30px}
+#moneyBox{display:flex;justify-content:space-between;align-items:center}
+#roundBox{display:flex;justify-content:space-between;align-items:center}
+
+#charmBar{position:fixed;top:16px;left:290px;right:16px;display:flex;align-items:flex-start;gap:12px;z-index:11}
+#charms{display:flex;gap:10px;min-height:126px;flex:1;padding:8px;border-radius:14px;background:rgba(0,0,0,.25);border:2px dashed var(--line)}
+#charmCount{font-size:14px;color:var(--dim);align-self:flex-end;padding:4px}
+.charm{position:relative;width:88px;height:108px;border-radius:12px;padding:8px 4px;text-align:center;cursor:default;
+  background:linear-gradient(160deg,#3b2b6e,#1d1838);border:2px solid #8e7cff66;box-shadow:0 5px 0 rgba(0,0,0,.45);
+  animation:float 3s ease-in-out infinite;}
+.charm:nth-child(2n){animation-delay:-1.4s}
+.charm .ico{font-size:40px;height:56px;display:flex;align-items:center;justify-content:center}
+img.px{width:56px;height:56px;image-rendering:pixelated;filter:drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+.item .charm img.px{width:68px;height:68px}
+#overText img.px{width:32px;height:32px;vertical-align:middle;filter:none}
+.charm .nm{font-size:12px;font-weight:700}
+.charm .tip{display:none;position:absolute;top:116px;left:50%;transform:translateX(-50%);width:180px;z-index:9;
+  background:#f6f1e7;color:#222;border-radius:10px;padding:8px 10px;font-size:13px;box-shadow:0 6px 0 rgba(0,0,0,.4)}
+.charm .tip b{display:block;margin-bottom:4px;font-size:14px}
+.charm .tip .sell{display:block;margin-top:6px;color:#b5462f;font-weight:700}
+.charm:hover .tip{display:block}
+.charm.sellable{cursor:pointer}
+.charm.shake{animation:shake .35s ease}
+@keyframes float{50%{transform:translateY(-4px) rotate(.6deg)}}
+@keyframes shake{0%{transform:scale(1)}30%{transform:scale(1.18) rotate(-6deg)}60%{transform:scale(1.1) rotate(5deg)}100%{transform:scale(1)}}
+
+#controls{position:fixed;bottom:18px;left:calc(50% + 133px);transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:2}
+.btn{border:none;border-radius:12px;color:#fff;font:800 17px "Microsoft YaHei",sans-serif;padding:12px 26px;cursor:pointer;
+  box-shadow:0 5px 0 rgba(0,0,0,.45);transition:transform .08s,filter .1s}
+.btn:hover{filter:brightness(1.12)}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
+.btn:disabled{filter:grayscale(.85) brightness(.6);cursor:not-allowed}
+.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.play{background:var(--blue)} .discard{background:var(--red)}
+.sort{background:#3a4566;padding:8px 14px;font-size:13px}
+.gold{background:#e2a51c;color:#2a1a00} .green{background:#2bb673}
+#sortBox{display:flex;flex-direction:column;gap:6px;align-items:center}
+#deckInfo{position:fixed;right:22px;bottom:22px;font-size:13px;color:var(--dim);z-index:2}
+
+.pop{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:20;font-family:Bungee,sans-serif;font-size:22px;
+  padding:2px 10px;border-radius:8px;color:#fff;white-space:nowrap;box-shadow:0 3px 0 rgba(0,0,0,.4);animation:rise .95s ease-out forwards}
+.pop.chips{background:var(--blue)} .pop.mult{background:var(--red)} .pop.x{background:var(--orange)}
+.pop.money{background:var(--gold);color:#2a1a00} .pop.debuff{background:#555;font-family:inherit;font-size:16px}
+.pop.total{font-size:46px;background:none;box-shadow:none;color:#fff;text-shadow:0 4px 0 #000,0 0 24px #ff406088;animation:totalPop 1.3s ease-out forwards}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-160%) scale(1)}}
+@keyframes totalPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}70%{opacity:1;transform:translate(-50%,-60%) scale(1)}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
+
+#banner{position:fixed;left:calc(50% + 133px);top:44%;transform:translate(-50%,-50%);z-index:15;pointer-events:none;text-align:center;opacity:0}
+#banner.show{animation:banner 2.2s ease forwards}
+#banner .big{font-family:Bungee,sans-serif;font-size:52px;color:var(--gold);text-shadow:0 5px 0 #000}
+#banner .sub{font-size:20px;font-weight:700;text-shadow:0 2px 0 #000}
+@keyframes banner{0%{opacity:0;transform:translate(-50%,-30%) scale(.8)}15%,75%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-70%)}}
+
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;background:rgba(3,6,12,.5);backdrop-filter:blur(2px)}
+.overlay.hidden{display:none}
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:22px 26px;box-shadow:0 8px 0 rgba(0,0,0,.45);
+  min-width:360px;max-width:min(760px,calc(100vw - 32px));margin-left:266px;animation:panelIn .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes panelIn{from{transform:translateY(40px) scale(.9);opacity:0}}
+.panel h2{margin:0 0 14px;font-family:Bungee,sans-serif;color:var(--gold);font-size:26px;text-align:center;font-weight:400}
+.row{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed var(--line);font-size:15px}
+.row .num{color:var(--gold)}
+.center{text-align:center;margin-top:16px}
+#shopItems{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.item{display:flex;flex-direction:column;align-items:center;gap:8px;width:120px}
+.item .charm{width:110px;height:132px;animation:none}
+.item .charm .ico{font-size:48px;line-height:64px}
+.item .desc{font-size:12px;color:#cfd6ee;text-align:center;min-height:48px}
+.item.tome .charm{background:linear-gradient(160deg,#145a5a,#0c2a33);border-color:#5ff0d066}
+.item.sold{opacity:.25;pointer-events:none}
+.shopTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.shopTop .num{color:var(--gold);font-size:26px}
+.sect{font-size:12px;color:var(--dim);letter-spacing:2px;margin:14px 0 8px;text-align:center}
+.panel{max-height:calc(100vh - 32px);overflow:auto}
+#charmCount,#moonCount{font-size:14px;color:var(--dim);align-self:flex-end;padding:4px}
+#moons{display:flex;gap:10px;min-height:126px;min-width:206px;padding:8px;border-radius:14px;background:rgba(0,0,0,.25);border:2px dashed var(--line)}
+#moons .tip{left:auto;right:0;transform:none}
+.charm.moon,.item.moonItem .charm{background:linear-gradient(160deg,#20406e,#0d1a33);border-color:#9ecbff66}
+.charm.usable{cursor:pointer}
+.charm.usable:hover{border-color:#cfe4ff}
+.charm[draggable=true]{cursor:grab}
+.charm.dragging{opacity:.35}
+.pop.retrig{background:#7a4dff;font-family:inherit;font-size:16px}
+.pop.total.fire{color:#ffd36a;text-shadow:0 4px 0 #000,0 0 30px #ff6a00,0 0 60px #ff3000}
+#cardTip{position:fixed;z-index:12;pointer-events:none;transform:translate(-50%,-100%);background:#f6f1e7;color:#222;border-radius:10px;
+  padding:6px 10px;font-size:13px;box-shadow:0 5px 0 rgba(0,0,0,.4);white-space:nowrap;display:none;text-align:center}
+#cardTip b{font-size:16px;font-family:Bungee,sans-serif;font-weight:400}
+#cardTip .e{display:block;font-weight:700}
+#toast{position:fixed;left:calc(50% + 133px);bottom:100px;transform:translateX(-50%);z-index:14;background:#2a1020;border:2px solid #ff405888;
+  color:#ffd0d8;padding:8px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+.mini{padding:4px 10px;font-size:12px;box-shadow:0 3px 0 rgba(0,0,0,.45)}
+#info{z-index:13}
+table.ht{width:100%;border-collapse:collapse;font-size:14px}
+table.ht td{padding:5px 8px;border-bottom:1px dashed var(--line)}
+table.ht td.c{color:var(--blue);font-family:Bungee;text-align:right}
+table.ht td.m{color:var(--red);font-family:Bungee}
+table.ht td.lv{color:var(--dim);font-size:12px}
+.deckSum{margin-top:12px;font-size:14px;color:#cfd6ee;line-height:1.9;text-align:center}
+.enhTag{display:inline-block;padding:0 8px;border-radius:6px;margin:0 3px;font-size:12px;color:#111;font-weight:700}
+@media (max-width:900px){
+  #side{width:190px} #charmBar{left:220px} .panel{margin-left:0}
+}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+
+<div id="side">
+  <div id="title" class="box">MIDNIGHT HAND<small>午 夜 之 手</small></div>
+  <div id="blind" class="box">
+    <div id="blindName">小夜</div>
+    <div class="lbl">至少得分</div>
+    <div id="target" class="num">0</div>
+    <div id="bossDesc"></div>
+  </div>
+  <div id="scoreBox" class="box"><span class="lbl">本轮得分</span><span id="score" class="num">0</span></div>
+  <div id="handBox" class="box">
+    <div id="handName">&nbsp;</div>
+    <div class="cm"><div id="chips">0</div><span>×</span><div id="mult">0</div></div>
+  </div>
+  <div class="stats">
+    <div class="box stat"><div class="lbl">出牌</div><div id="hands" class="num">4</div></div>
+    <div class="box stat"><div class="lbl">弃牌</div><div id="discards" class="num">3</div></div>
+  </div>
+  <div id="moneyBox" class="box"><span class="lbl">金币</span><span id="money" class="num">$4</span></div>
+  <div id="roundBox" class="box"><span class="lbl">回合</span><button class="btn sort mini" id="btnInfo">牌型 · 牌组</button><span class="num"><span id="roundNo">1</span><span id="roundMax">/8</span></span></div>
+</div>
+
+<div id="charmBar"><div id="charms"></div><div id="charmCount">0/5</div><div id="moons"></div><div id="moonCount">0/2</div></div>
+
+<div id="controls">
+  <button class="btn play" id="btnPlay">出牌</button>
+  <div id="sortBox">
+    <button class="btn sort" id="sortRank">按点数</button>
+    <button class="btn sort" id="sortSuit">按花色</button>
+  </div>
+  <button class="btn discard" id="btnDiscard">弃牌</button>
+</div>
+<div id="deckInfo">牌库 <span id="deckCount" class="num">52</span>/<span id="deckTotal">52</span></div>
+<div id="cardTip"></div><div id="toast"></div>
+<div id="banner"><div class="big"></div><div class="sub"></div></div>
+
+<div id="cash" class="overlay hidden"><div class="panel">
+  <h2>过关</h2><div id="cashRows"></div>
+  <div class="center"><button class="btn gold" id="btnCash">领取</button></div>
+</div></div>
+
+<div id="shop" class="overlay hidden"><div class="panel">
+  <div class="shopTop"><h2 style="margin:0">夜市</h2><span id="shopMoney" class="num">$0</span></div>
+  <div class="sect">护 符</div><div id="shopItems"></div>
+  <div class="sect">秘 典 · 月 相</div><div id="tomeItems" style="display:flex;gap:14px;justify-content:center"></div>
+  <div class="center" style="display:flex;gap:12px;justify-content:center">
+    <button class="btn green" id="btnReroll">刷新 $5</button>
+    <button class="btn play" id="btnNext">下一轮 →</button>
+  </div>
+  <div class="center lbl">提示：点击上方已拥有的护符可半价出售，拖动可调整结算顺序</div>
+</div></div>
+
+<div id="info" class="overlay hidden"><div class="panel">
+  <h2>牌型 · 牌组</h2><div id="infoBody"></div>
+  <div class="center"><button class="btn play" id="btnInfoClose">关闭</button></div>
+</div></div>
+
+<div id="over" class="overlay hidden"><div class="panel" style="text-align:center">
+  <h2 id="overTitle">夜深了……</h2><div id="overText" style="font-size:16px;line-height:1.8"></div>
+  <div class="center" style="display:flex;gap:12px;justify-content:center">
+    <button class="btn gold" id="btnEndless" style="display:none">无尽长夜 →</button>
+    <button class="btn play" onclick="location.reload()">再来一局</button>
+  </div>
+</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = n => Math.floor(Math.random() * n);
+
+/* ---------------- renderer / scene ---------------- */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+const camBase = new THREE.Vector3();
+let shakeT = 0;
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  const k = Math.max(1, 1.75 / camera.aspect);   // pull back on narrow screens
+  camera.position.set(0, -4.2 * k, 15 * k); camBase.copy(camera.position);
+  camera.lookAt(0, -0.6, 0);
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+// swirling felt background
+const bgMat = new THREE.ShaderMaterial({
+  uniforms: { t: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `
+    uniform float t; varying vec2 vUv;
+    void main(){
+      vec2 uv = floor(vUv*vec2(480.,300.))/vec2(480.,300.);   // slight pixelation
+      vec2 p = (uv-.5)*vec2(1.6,1.)*3.2;
+      float r = length(p), a = atan(p.y,p.x);
+      a += t*.04 + r*.55 - sin(r*1.4 - t*.25)*.45;
+      vec2 q = vec2(cos(a),sin(a))*r;
+      for(int i=0;i<4;i++) q += .38*vec2(sin(q.y*1.6+t*.18), cos(q.x*1.45-t*.15));
+      float v = .5+.5*sin(q.x*1.25+q.y*.85);
+      vec3 col = mix(vec3(.03,.10,.13), vec3(.07,.27,.30), smoothstep(.15,.85,v));
+      col = mix(col, vec3(.34,.07,.17), smoothstep(.78,1.,v)*.55);
+      col *= 1.-smoothstep(.9,2.6,r*.6);
+      gl_FragColor = vec4(col,1.);
+    }`,
+});
+const bg = new THREE.Mesh(new THREE.PlaneGeometry(80, 50), bgMat);
+bg.position.z = -3; scene.add(bg);
+
+const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), new THREE.ShadowMaterial({ opacity: 0.45 }));
+shadowPlane.position.z = -0.3; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
+
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(-3, 5, 14); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 9, bottom: -9, near: 1, far: 40 });
+sun.shadow.radius = 4;
+scene.add(sun);
+
+/* ---------------- card geometry & textures ---------------- */
+const CW = 1.3, CH = 1.82, CR = 0.12;
+function roundRect(w, h, r) {
+  const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+const cardGeo = new THREE.ShapeGeometry(roundRect(CW, CH, CR), 6);
+{ const uv = cardGeo.attributes.uv, p = cardGeo.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, p.getX(i) / CW + 0.5, p.getY(i) / CH + 0.5); }
+const glowGeo = new THREE.ShapeGeometry(roundRect(CW + 0.14, CH + 0.14, CR + 0.07), 6);
+
+const SUITS = [
+  { s: '♠', c: '#2b2d42', n: '黑桃' }, { s: '♥', c: '#e23a4c', n: '红桃' },
+  { s: '♣', c: '#17736b', n: '梅花' }, { s: '♦', c: '#ee6a1f', n: '方块' },
+];
+const RN = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+const rankName = r => RN[r] || String(r);
+const isRed = c => c.suit === 1 || c.suit === 3;
+const cardChips = c => c.rank <= 10 ? c.rank : c.rank < 14 ? 10 : 11;
+const ENH = {
+  bonus: { n: '加筹卡', tag: '+30', bg: '#e3efff', c: '#2f7fe0', d: '计分时 +30 筹码', sheen: 0x6fb6ff },
+  mult: { n: '倍率卡', tag: '+4', bg: '#ffe6e6', c: '#e0334a', d: '计分时 +4 倍率', sheen: 0xff6070 },
+  glass: { n: '玻璃卡', tag: '×2', bg: '#e6fbff', c: '#3fb8d0', d: '计分时 ×2 倍率，1/4 几率碎裂', sheen: 0xbff6ff },
+  steel: { n: '钢铁卡', tag: '钢', bg: '#cfd4de', c: '#59627a', d: '留在手中时 ×1.5 倍率', sheen: 0xffffff },
+  gold: { n: '金卡', tag: '$3', bg: '#ffe9a8', c: '#c08a10', d: '过关时留在手中 +$3', sheen: 0xffe08a },
+};
+
+const PIPS = {
+  2: [[.5, 0], [.5, 1]], 3: [[.5, 0], [.5, .5], [.5, 1]],
+  4: [[0, 0], [1, 0], [0, 1], [1, 1]], 5: [[0, 0], [1, 0], [.5, .5], [0, 1], [1, 1]],
+  6: [[0, 0], [1, 0], [0, .5], [1, .5], [0, 1], [1, 1]],
+  7: [[0, 0], [1, 0], [.5, .25], [0, .5], [1, .5], [0, 1], [1, 1]],
+  8: [[0, 0], [1, 0], [.5, .25], [0, .5], [1, .5], [.5, .75], [0, 1], [1, 1]],
+  9: [[0, 0], [1, 0], [0, 1 / 3], [1, 1 / 3], [.5, .5], [0, 2 / 3], [1, 2 / 3], [0, 1], [1, 1]],
+  10: [[0, 0], [1, 0], [.5, 1 / 6], [0, 1 / 3], [1, 1 / 3], [0, 2 / 3], [1, 2 / 3], [.5, 5 / 6], [0, 1], [1, 1]],
+};
+const TW = 260, TH = 364;
+function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+const texCache = new Map();
+function faceTex(rank, suit, enh) {
+  const key = `${rank}-${suit}-${enh || ''}`;
+  if (texCache.has(key)) return texCache.get(key);
+  const cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
+  const g = cv.getContext('2d'), S = SUITS[suit], E = ENH[enh];
+  g.fillStyle = E ? E.bg : '#f7f2e6'; g.fillRect(0, 0, TW, TH);
+  g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 4; rr(g, 8, 8, TW - 16, TH - 16, 16); g.stroke();
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (E) {
+    g.strokeStyle = E.c; g.lineWidth = 7; rr(g, 6, 6, TW - 12, TH - 12, 16); g.stroke();
+    g.fillStyle = E.c; rr(g, TW / 2 - 32, 8, 64, 28, 14); g.fill();
+    g.fillStyle = '#fff'; g.font = '20px Bungee, "Microsoft YaHei"'; g.fillText(E.tag, TW / 2, 23);
+  }
+  g.fillStyle = S.c;
+  const corner = () => {
+    g.font = '40px Bungee, Impact'; g.fillText(rankName(rank), 34, 40);
+    g.font = '34px "Segoe UI Symbol", sans-serif'; g.fillText(S.s, 34, 80);
+  };
+  corner(); g.save(); g.translate(TW, TH); g.rotate(Math.PI); corner(); g.restore();
+  if (rank <= 10) {
+    g.font = '50px "Segoe UI Symbol", sans-serif';
+    for (const [px, py] of PIPS[rank]) {
+      const x = 92 + px * 76, y = 66 + py * 232;
+      g.save(); g.translate(x, y); if (py > 0.5) g.rotate(Math.PI); g.fillText(S.s, 0, 0); g.restore();
+    }
+  } else if (rank === 14) {
+    g.font = '170px "Segoe UI Symbol", sans-serif'; g.fillText(S.s, TW / 2, TH / 2 + 6);
+  } else {
+    g.fillStyle = S.c + '22'; rr(g, 62, 70, TW - 124, TH - 140, 14); g.fill();
+    g.strokeStyle = S.c; g.lineWidth = 4; g.stroke();
+    g.fillStyle = S.c; g.font = '110px Bungee, Impact'; g.fillText(rankName(rank), TW / 2, TH / 2 + 4);
+    g.font = '30px "Segoe UI Symbol", sans-serif';
+    g.fillText(S.s, TW / 2, 100); g.fillText(S.s, TW / 2, TH - 100);
+    g.fillText(S.s, 86, TH / 2); g.fillText(S.s, TW - 86, TH / 2);
+  }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  texCache.set(key, t); return t;
+}
+function backTex() {
+  const cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#7d1730'; g.fillRect(0, 0, TW, TH);
+  g.save(); rr(g, 18, 18, TW - 36, TH - 36, 12); g.clip();
+  g.fillStyle = '#5a0f22'; g.fillRect(0, 0, TW, TH);
+  g.strokeStyle = '#a3263f'; g.lineWidth = 3;
+  for (let i = -TH; i < TW + TH; i += 22) {
+    g.beginPath(); g.moveTo(i, 0); g.lineTo(i + TH, TH); g.stroke();
+    g.beginPath(); g.moveTo(i, 0); g.lineTo(i - TH, TH); g.stroke();
+  }
+  g.restore();
+  g.strokeStyle = '#ffc84a'; g.lineWidth = 4; rr(g, 18, 18, TW - 36, TH - 36, 12); g.stroke();
+  g.fillStyle = '#5a0f22'; g.beginPath(); g.arc(TW / 2, TH / 2, 52, 0, 7); g.fill();
+  g.strokeStyle = '#ffc84a'; g.stroke();
+  g.fillStyle = '#ffc84a'; g.font = '64px "Segoe UI Symbol", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('☾', TW / 2, TH / 2 + 2);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+/* ---------------- card objects ---------------- */
+let backMat;
+const allCards = new Set();
+let cid = 0;
+const sheenVS = `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
+const sheenFS = `
+  uniform float t; uniform vec3 col; varying vec2 vUv;
+  void main(){
+    float x = vUv.x*.7 + vUv.y*.5;
+    float b = fract(t*.22)*2.2 - .5;
+    float a = smoothstep(.1, 0., abs(x - b))*.5 + .04;
+    gl_FragColor = vec4(col*a, a);
+  }`;
+// moving highlight band on enhanced cards
+function refreshSheen(c) {
+  if (c.sheen) { c.g.remove(c.sheen); c.sheen.material.dispose(); c.sheen = null; }
+  const E = ENH[c.enh];
+  if (!E) return;
+  c.sheen = new THREE.Mesh(cardGeo, new THREE.ShaderMaterial({
+    uniforms: { t: { value: Math.random() * 5 }, col: { value: new THREE.Color(E.sheen) } },
+    vertexShader: sheenVS, fragmentShader: sheenFS, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  c.sheen.position.z = 0.003; c.g.add(c.sheen);
+}
+const isDebuffed = c => !!S.boss?.debuff?.(c);
+const tint = c => c.front.material.color.setHex(c.debuff ? 0x6b6b78 : 0xffffff);
+function setCardData(c, patch) {
+  Object.assign(c.d, patch);
+  c.rank = c.d.rank; c.suit = c.d.suit; c.enh = c.d.enh;
+  c.front.material.map = faceTex(c.rank, c.suit, c.enh);
+  c.debuff = isDebuffed(c); tint(c); refreshSheen(c);
+}
+const FLIP = 0.5;
+function flip(c, fn) { c.flipT = FLIP; setTimeout(fn, FLIP * 500); }
+function makeCard(d) {
+  const g = new THREE.Group();
+  const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: faceTex(d.rank, d.suit, d.enh) }));
+  const back = new THREE.Mesh(cardGeo, backMat);
+  back.rotation.y = Math.PI; back.position.z = -0.004;
+  const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xffc84a, transparent: true, opacity: 0 }));
+  glow.position.z = -0.002;
+  front.castShadow = back.castShadow = true;
+  g.add(front, back, glow); scene.add(g);
+  const c = { id: cid++, d, rank: d.rank, suit: d.suit, enh: d.enh, g, front, glow, sheen: null, sel: false, debuff: false, flipT: 0,
+    tp: new THREE.Vector3(), tr: new THREE.Euler(), ts: 1, sc: 1, speed: 11 };
+  front.userData.card = c;
+  refreshSheen(c); c.debuff = isDebuffed(c); tint(c);
+  allCards.add(c);
+  return c;
+}
+function disposeCard(c) { scene.remove(c.g); c.front.material.dispose(); c.glow.material.dispose(); c.sheen?.material.dispose(); allCards.delete(c); }
+function updateCard(c, dt) {
+  const k = 1 - Math.exp(-dt * c.speed);
+  c.g.position.lerp(c.tp, k);
+  const r = c.g.rotation;
+  r.x += (c.tr.x - r.x) * k; r.y += (c.tr.y - r.y) * k; r.z += (c.tr.z - r.z) * k;
+  c.sc += (c.ts - c.sc) * (1 - Math.exp(-dt * 9));
+  c.g.scale.setScalar(c.sc);
+  const go = c.sel ? 0.95 : 0;
+  c.glow.material.opacity += (go - c.glow.material.opacity) * k;
+  if (c.flipT > 0) {
+    c.flipT -= dt;
+    r.y = c.flipT <= 0 ? c.tr.y : c.tr.y + Math.PI * 2 * (1 - c.flipT / FLIP);
+  }
+  if (c.sheen) c.sheen.material.uniforms.t.value += dt;
+}
+
+// deck stack
+const CX = 1.4, HAND_Y = -3.25, PLAY_Y = 0.45;
+const DECK = new THREE.Vector3(7.9, -3.1, 0.1);
+const deckStack = [];
+
+/* ---------------- particles ---------------- */
+const PN = 800;
+const pPos = new Float32Array(PN * 3), pCol = new Float32Array(PN * 3);
+const pVel = new Float32Array(PN * 3), pBase = new Float32Array(PN * 3), pLife = new Float32Array(PN);
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+const dotTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(cv);
+})();
+const points = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.3, map: dotTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+points.frustumCulled = false; scene.add(points);
+let pHead = 0;
+function burst(pos, n, color, spd = 4) {
+  const col = new THREE.Color(color);
+  for (let k = 0; k < n; k++) {
+    const i = pHead; pHead = (pHead + 1) % PN;
+    const a = Math.random() * Math.PI * 2, s = spd * (0.3 + Math.random() * 0.7);
+    pPos.set([pos.x, pos.y, pos.z + 0.4], i * 3);
+    pVel.set([Math.cos(a) * s, Math.sin(a) * s + spd * 0.3, Math.random() * 2], i * 3);
+    pBase.set([col.r, col.g, col.b], i * 3);
+    pLife[i] = 0.5 + Math.random() * 0.6;
+  }
+}
+function updateParticles(dt) {
+  const damp = Math.pow(0.15, dt);
+  for (let i = 0; i < PN; i++) {
+    if (pLife[i] <= 0) continue;
+    pLife[i] -= dt;
+    const l = Math.min(1, Math.max(0, pLife[i]) * 2), j = i * 3;
+    pVel[j + 1] -= 7 * dt;
+    for (let a = 0; a < 3; a++) { pVel[j + a] *= damp; pPos[j + a] += pVel[j + a] * dt; pCol[j + a] = pBase[j + a] * l; }
+  }
+  pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = true;
+}
+
+/* ---------------- game data ---------------- */
+const HT = {
+  high: { n: '高牌', c: 5, m: 1, ic: 10, im: 1 },
+  pair: { n: '对子', c: 10, m: 2, ic: 15, im: 1 },
+  two: { n: '两对', c: 20, m: 2, ic: 20, im: 1 },
+  three: { n: '三条', c: 30, m: 3, ic: 20, im: 2 },
+  straight: { n: '顺子', c: 30, m: 4, ic: 30, im: 3 },
+  flush: { n: '同花', c: 35, m: 4, ic: 15, im: 2 },
+  full: { n: '葫芦', c: 40, m: 4, ic: 25, im: 2 },
+  four: { n: '四条', c: 60, m: 7, ic: 30, im: 3 },
+  sflush: { n: '同花顺', c: 100, m: 8, ic: 40, im: 4 },
+};
+const CHARMS = [
+  { id: 'lantern', n: '余烬提灯', i: '🏮', p: 4, d: '+4 倍率', hand: () => ({ mult: 4 }) },
+  { id: 'thread', n: '红线', i: '🧶', p: 5, d: '计分的 ♥ ♦ 牌各 +3 倍率', card: c => isRed(c) ? { mult: 3 } : null },
+  { id: 'owl', n: '夜枭', i: '🦉', p: 5, d: '计分的 ♠ ♣ 牌各 +20 筹码', card: c => !isRed(c) ? { chips: 20 } : null },
+  { id: 'mask', n: '假面舞会', i: '🎭', p: 6, d: '计分的 J Q K 各 +4 倍率', card: c => c.rank >= 11 && c.rank <= 13 ? { mult: 4 } : null },
+  { id: 'ace', n: '启明星', i: '⭐', p: 4, d: '计分的 A 各 +30 筹码 +4 倍率', card: c => c.rank === 14 ? { chips: 30, mult: 4 } : null },
+  { id: 'pond', n: '镜湖', i: '🦢', p: 7, d: '牌型为 对子 / 两对 / 葫芦 时 ×2 倍率', hand: x => ['pair', 'two', 'full'].includes(x.k) ? { x: 2 } : null },
+  { id: 'map', n: '旅人地图', i: '🗺️', p: 8, d: '顺子 / 同花 / 同花顺 ×3 倍率', hand: x => ['straight', 'flush', 'sflush'].includes(x.k) ? { x: 3 } : null },
+  { id: 'clock', n: '发条鸟', i: '🐦', p: 5, d: '打出 ≤3 张牌时 +12 倍率', hand: x => x.played.length <= 3 ? { mult: 12 } : null },
+  { id: 'coin', n: '镀金硬币', i: '💰', p: 6, d: '每持有 $3，+1 倍率', hand: () => { const m = Math.floor(S.money / 3); return m ? { mult: m } : null; } },
+  { id: 'hoard', n: '囤积者', i: '📦', p: 5, d: '每剩 1 次弃牌，+30 筹码', hand: () => S.discards ? { chips: 30 * S.discards } : null },
+  { id: 'bell', n: '打烊铃', i: '🔔', p: 6, d: '本轮最后一手牌 ×3 倍率', hand: () => S.hands === 0 ? { x: 3 } : null },
+  { id: 'tide', n: '涨潮', i: '🌊', p: 6, d: () => `每打出一手牌永久 +1 倍率（当前 +${S.tide}）`, hand: () => { S.tide++; return { mult: S.tide }; } },
+  { id: 'prism', n: '玻璃棱镜', i: '🔮', p: 7, d: '×1.5 倍率', hand: () => ({ x: 1.5 }) },
+  { id: 'echo', n: '回声', i: '🔁', p: 7, d: '第一张计分牌额外触发一次' },
+  { id: 'dice', n: '赌徒骰子', i: '🎲', p: 5, d: '每手牌有 1/3 几率 ×3 倍率', hand: () => Math.random() < 1 / 3 ? { x: 3 } : null },
+  { id: 'piggy', n: '存钱猪', i: '🐷', p: 4, d: '每打出一手牌 +$1', hand: () => ({ money: 1 }) },
+  { id: 'collector', n: '收藏家', i: '🃏', p: 6, d: () => `牌组中每张增强牌 +2 倍率（当前 +${2 * S.deckList.filter(d => d.enh).length}）`,
+    hand: () => { const n = S.deckList.filter(d => d.enh).length; return n ? { mult: 2 * n } : null; } },
+];
+const sprite = (dir, o) => `<img class="px" src="assets/${dir}/${o.id}.png" alt="${o.n}" draggable="false">`;
+CHARMS.forEach(c => c.i = sprite('charms', c));
+const desc = ch => typeof ch.d === 'function' ? ch.d() : ch.d;
+const TARGETS = [250, 450, 700, 1000, 1500, 2300, 3400, 5000];
+const targetOf = r => r <= 8 ? TARGETS[r - 1] : Math.round(5000 * Math.pow(1.7, r - 8) / 100) * 100;
+const isBossRound = r => [3, 6, 8].includes(r) || (r > 8 && (r - 8) % 3 === 0);
+const BLIND_NAMES = ['小夜', '深夜', '暗月'];
+const HAND_SIZE = 8, MAX_CHARMS = 5, MAX_MOONS = 2;
+const BOSSES = [
+  () => { const s = rnd(4); return { n: '封印之月', d: `所有 ${SUITS[s].s} ${SUITS[s].n} 不计分`, debuff: c => c.suit === s }; },
+  () => ({ n: '碎面之月', d: 'J Q K 不计分', debuff: c => c.rank >= 11 && c.rank <= 13 }),
+  () => ({ n: '寂静之月', d: '本轮不能弃牌', setup: () => { S.discards = 0; } }),
+  () => ({ n: '收税之月', d: '每次出牌 -$1', tax: 1 }),
+  () => ({ n: '浓雾之月', d: '手牌上限 -2', setup: () => { S.handSize = HAND_SIZE - 2; } }),
+];
+const enhDesc = e => `${ENH[e].n}（${ENH[e].d}）`;
+const MOONS = [
+  { id: 'new', n: '新月', i: '🌑', min: 1, max: 2, d: `最多 2 张选中牌变为${enhDesc('bonus')}`, use: s => morph(s, () => ({ enh: 'bonus' })) },
+  { id: 'first', n: '上弦月', i: '🌓', min: 1, max: 2, d: `最多 2 张选中牌变为${enhDesc('mult')}`, use: s => morph(s, () => ({ enh: 'mult' })) },
+  { id: 'full', n: '满月', i: '🌕', min: 1, max: 1, d: `1 张选中牌变为${enhDesc('glass')}`, use: s => morph(s, () => ({ enh: 'glass' })) },
+  { id: 'last', n: '下弦月', i: '🌗', min: 1, max: 1, d: `1 张选中牌变为${enhDesc('steel')}`, use: s => morph(s, () => ({ enh: 'steel' })) },
+  { id: 'gold', n: '金月', i: '🌝', min: 1, max: 1, d: `1 张选中牌变为${enhDesc('gold')}`, use: s => morph(s, () => ({ enh: 'gold' })) },
+  { id: 'wax', n: '盈凸月', i: '🌔', min: 1, max: 2, d: '最多 2 张选中牌点数 +1', use: s => morph(s, c => ({ rank: c.rank === 14 ? 2 : c.rank + 1 })) },
+  { id: 'dye', n: '残月', i: '🌙', min: 2, max: 3, d: '选中 2-3 张，全部变为最左一张的花色', use: s => morph(s.slice(1), () => ({ suit: s[0].suit })) },
+  { id: 'twin', n: '双月', i: '🌒', min: 1, max: 1, d: '复制 1 张选中牌，加入牌组和手牌', use: s => twin(s[0]) },
+  { id: 'eclipse', n: '月蚀', i: '🌘', min: 1, max: 2, d: '从牌组中永久摧毁最多 2 张选中牌', use: s => eclipse(s) },
+];
+
+MOONS.forEach(m => m.i = sprite('moons', m));
+
+const S = { round: 1, money: 4, score: 0, target: 0, hands: 4, discards: 3, charms: [], moons: [], levels: {},
+  deck: [], deckList: [], tide: 0, boss: null, bossBag: [], busy: true, phase: 'play', sort: 'rank', rerollCost: 5,
+  handSize: HAND_SIZE, played: {}, best: 0, endless: false };
+let hand = [], played = [], hovered = null, hoverUV = null;
+let chips = 0, mult = 0;
+
+/* ---------------- audio ---------------- */
+let actx;
+function tone(f, d = 0.08, type = 'square', v = 0.04) {
+  try {
+    actx ??= new AudioContext();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d);
+  } catch (e) { /* audio is optional */ }
+}
+
+/* ---------------- poker evaluation ---------------- */
+function evaluate(cards) {
+  if (!cards.length) return null;
+  const byR = {};
+  cards.forEach(c => (byR[c.rank] ??= []).push(c));
+  const gs = Object.values(byR).sort((a, b) => b.length - a.length || b[0].rank - a[0].rank);
+  const n = cards.length;
+  const flush = n === 5 && cards.every(c => c.suit === cards[0].suit);
+  let straight = false;
+  if (n === 5 && gs.length === 5) {
+    const rs = cards.map(c => c.rank).sort((a, b) => a - b);
+    straight = rs[4] - rs[0] === 4 || rs.join() === '2,3,4,5,14';
+  }
+  if (straight && flush) return { k: 'sflush', sc: cards };
+  if (gs[0].length === 4) return { k: 'four', sc: gs[0] };
+  if (gs[0].length === 3 && gs[1]?.length === 2) return { k: 'full', sc: cards };
+  if (flush) return { k: 'flush', sc: cards };
+  if (straight) return { k: 'straight', sc: cards };
+  if (gs[0].length === 3) return { k: 'three', sc: gs[0] };
+  if (gs[0].length === 2 && gs[1]?.length === 2) return { k: 'two', sc: [...gs[0], ...gs[1]] };
+  if (gs[0].length === 2) return { k: 'pair', sc: gs[0] };
+  return { k: 'high', sc: [gs[0][0]] };
+}
+function handBase(k) {
+  const h = HT[k], l = S.levels[k] || 1;
+  return { chips: h.c + (l - 1) * h.ic, mult: h.m + (l - 1) * h.im, lvl: l };
+}
+
+/* ---------------- HUD ---------------- */
+const fmt = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 90); }
+function setCM(b = true) {
+  $('#chips').textContent = fmt(chips); $('#mult').textContent = fmt(mult);
+  if (b) { bump($('#chips')); bump($('#mult')); }
+}
+function setHandName(k) {
+  if (!k) { $('#handName').innerHTML = '&nbsp;'; return; }
+  $('#handName').innerHTML = `${HT[k].n}<span class="lv">Lv.${S.levels[k] || 1}</span>`;
+}
+function updateHUD() {
+  $('#target').textContent = S.target.toLocaleString();
+  $('#score').textContent = Math.floor(S.score).toLocaleString();
+  $('#hands').textContent = S.hands; $('#discards').textContent = S.discards;
+  $('#money').textContent = '$' + S.money; $('#roundNo').textContent = S.round;
+  $('#roundMax').textContent = S.endless ? '' : '/8';
+  $('#deckCount').textContent = S.deck.length; $('#deckTotal').textContent = S.deckList.length;
+  const sel = hand.filter(c => c.sel).length;
+  const can = S.phase === 'play' && !S.busy;
+  $('#btnPlay').disabled = !can || !sel || S.hands <= 0;
+  $('#btnDiscard').disabled = !can || !sel || S.discards <= 0;
+  deckStack.forEach((m, i) => m.visible = i < Math.ceil(S.deck.length / 8));
+}
+function preview() {
+  if (S.busy) return;
+  const ev = evaluate(hand.filter(c => c.sel));
+  if (!ev) { chips = mult = 0; setHandName(null); setCM(false); }
+  else { const b = handBase(ev.k); chips = b.chips; mult = b.mult; setHandName(ev.k); setCM(false); }
+  updateHUD();
+}
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+let dragIdx = null;
+function renderCharms() {
+  const box = $('#charms'); box.innerHTML = '';
+  const shop = S.phase === 'shop';
+  S.charms.forEach((ch, i) => {
+    const el = document.createElement('div');
+    el.className = 'charm' + (shop ? ' sellable' : '');
+    el.draggable = true;
+    el.innerHTML = `<div class="ico">${ch.i}</div><div class="nm">${ch.n}</div>
+      <div class="tip"><b>${ch.n}</b>${desc(ch)}${shop ? `<span class="sell">点击出售 +$${Math.floor(ch.p / 2)}</span>` : ''}</div>`;
+    el.onclick = () => {
+      if (!shop) return;
+      S.money += Math.floor(ch.p / 2); S.charms.splice(i, 1);
+      tone(500, .1, 'triangle'); renderCharms(); renderShop(); updateHUD();
+    };
+    // drag to reorder: charms resolve left to right, so order matters for +mult vs ×mult
+    el.ondragstart = e => {
+      if (S.busy && S.phase === 'play') { e.preventDefault(); return; }
+      dragIdx = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move';
+    };
+    el.ondragend = () => el.classList.remove('dragging');
+    el.ondragover = e => e.preventDefault();
+    el.ondrop = e => {
+      e.preventDefault();
+      if (dragIdx == null || dragIdx === i) return;
+      const [m] = S.charms.splice(dragIdx, 1); S.charms.splice(i, 0, m); dragIdx = null;
+      tone(560, .05, 'triangle'); renderCharms();
+    };
+    ch.el = el; box.appendChild(el);
+  });
+  $('#charmCount').textContent = `${S.charms.length}/${MAX_CHARMS}`;
+}
+function renderMoons() {
+  const box = $('#moons'); box.innerHTML = '';
+  const shop = S.phase === 'shop';
+  S.moons.forEach((m, i) => {
+    const el = document.createElement('div');
+    el.className = 'charm moon ' + (shop ? 'sellable' : 'usable');
+    const need = m.min === m.max ? `${m.min}` : `${m.min}-${m.max}`;
+    el.innerHTML = `<div class="ico">${m.i}</div><div class="nm">${m.n}</div>
+      <div class="tip"><b>${m.n}</b>${m.d}<span class="sell">${shop ? '点击出售 +$1' : `选中 ${need} 张手牌后点击使用`}</span></div>`;
+    el.onclick = () => {
+      if (shop) { S.money += 1; S.moons.splice(i, 1); tone(500, .1, 'triangle'); renderMoons(); renderShop(); updateHUD(); return; }
+      useMoon(i);
+    };
+    box.appendChild(el);
+  });
+  $('#moonCount').textContent = `${S.moons.length}/${MAX_MOONS}`;
+}
+function shake(el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+
+function popAt(x, y, text, cls) {
+  const d = document.createElement('div');
+  d.className = 'pop ' + cls; d.textContent = text;
+  d.style.left = x + 'px'; d.style.top = y + 'px';
+  document.body.appendChild(d); setTimeout(() => d.remove(), 1400);
+}
+function toScreen(v) { const p = v.clone().project(camera); return [(p.x + 1) / 2 * innerWidth, (1 - p.y) / 2 * innerHeight]; }
+const popCard = c => (t, cls) => { const [x, y] = toScreen(c.tp.clone().add(new THREE.Vector3(0, 1.25, 0.3))); popAt(x, y, t, cls); };
+const popEl = el => (t, cls) => { const r = el.getBoundingClientRect(); popAt(r.left + r.width / 2, r.bottom + 18, t, cls); };
+function banner(big, sub) {
+  const b = $('#banner'); b.querySelector('.big').textContent = big; b.querySelector('.sub').textContent = sub;
+  b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+  clearTimeout(banner.t); banner.t = setTimeout(() => b.classList.remove('show'), 2300);
+}
+
+// hover tooltip for the card under the cursor
+let tipKey = '';
+function updateCardTip() {
+  const el = $('#cardTip'), c = hovered;
+  if (!c) { el.style.display = 'none'; tipKey = ''; return; }
+  const key = `${c.id}-${c.rank}-${c.suit}-${c.enh}-${c.debuff}`;
+  if (key !== tipKey) {
+    tipKey = key;
+    const s = SUITS[c.suit], E = ENH[c.enh];
+    el.innerHTML = `<b style="color:${s.c}">${rankName(c.rank)}${s.s}</b> +${cardChips(c)} 筹码`
+      + (E ? `<span class="e" style="color:${E.c}">${E.n}：${E.d}</span>` : '')
+      + (c.debuff ? '<span class="e" style="color:#777">被首领封印</span>' : '');
+  }
+  const [x, y] = toScreen(c.g.position.clone().add(new THREE.Vector3(0, CH / 2 * c.sc + 0.12, 0.3)));
+  el.style.display = 'block'; el.style.left = x + 'px'; el.style.top = y + 'px';
+}
+
+/* ---------------- layout ---------------- */
+let elapsed = 0;
+function layoutHand() {
+  const n = hand.length, sp = Math.min(1.1, 8.4 / Math.max(n, 1)), mid = (n - 1) / 2;
+  hand.forEach((c, i) => {
+    const d = i - mid, hv = c === hovered && !S.busy;
+    c.tp.set(CX + d * sp, HAND_Y - d * d * 0.028 + (c.sel ? 0.5 : 0) + Math.sin(elapsed * 1.6 + i * 0.9) * 0.025, 0.02 * i + (hv ? 0.45 : 0));
+    c.tr.set(0, 0, -d * 0.035);
+    if (hv && hoverUV) { c.tr.y = (hoverUV.x - 0.5) * 0.55; c.tr.x = -(hoverUV.y - 0.5) * 0.55; }
+    if (c.ts !== 0) c.ts = hv ? 1.08 : 1;
+  });
+}
+function layoutPlayed() {
+  const n = played.length, mid = (n - 1) / 2;
+  played.forEach((c, i) => { c.tp.set(CX + (i - mid) * 1.5, PLAY_Y, 0.1); c.tr.set(0, 0, 0); c.ts = 1; });
+}
+function sortHand() {
+  hand.sort(S.sort === 'rank' ? (a, b) => b.rank - a.rank || a.suit - b.suit : (a, b) => a.suit - b.suit || b.rank - a.rank);
+}
+const cardWorld = c => c.g.position.clone();
+
+/* ---------------- flow ---------------- */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+for (let s = 0; s < 4; s++) for (let r = 2; r <= 14; r++) S.deckList.push({ rank: r, suit: s, enh: null });
+
+async function drawTo() {
+  while (hand.length < S.handSize && S.deck.length) {
+    const c = makeCard(S.deck.pop());
+    c.g.position.copy(DECK).add(new THREE.Vector3(0, 0, 0.12));
+    c.g.rotation.set(0, Math.PI, 0.2);
+    c.speed = 9;
+    hand.push(c); sortHand(); updateHUD();
+    tone(320 + hand.length * 40, 0.05, 'triangle', 0.03);
+    await sleep(70);
+  }
+}
+
+function startRound() {
+  S.phase = 'play';
+  S.target = targetOf(S.round); S.score = 0; S.hands = 4; S.discards = 3; S.handSize = HAND_SIZE;
+  const isBoss = isBossRound(S.round);
+  S.boss = null;
+  if (isBoss) {
+    if (!S.bossBag.length) S.bossBag = shuffle(BOSSES.slice());
+    S.boss = S.bossBag.pop()(); S.boss.setup?.();
+  }
+  const tier = isBoss ? 2 : (S.round % 3 === 1 ? 0 : 1);
+  $('#blindName').textContent = isBoss ? S.boss.n : BLIND_NAMES[tier];
+  $('#blind').classList.toggle('boss', isBoss);
+  $('#bossDesc').textContent = isBoss ? S.boss.d : '';
+  S.deck = shuffle(S.deckList.slice());
+  chips = mult = 0; setCM(false); setHandName(null);
+  renderCharms(); renderMoons(); updateHUD();
+  banner(`ROUND ${S.round}`, isBoss ? `${S.boss.n} · ${S.boss.d}` : `目标 ${S.target.toLocaleString()}`);
+  S.busy = true;
+  setTimeout(async () => { await drawTo(); S.busy = false; updateHUD(); }, 500);
+}
+
+async function applyFx(fx, pop, step) {
+  if (fx.chips) { chips += fx.chips; pop('+' + fx.chips, 'chips'); setCM(); tone(520, .07); await sleep(step); }
+  if (fx.mult) { mult += fx.mult; pop('+' + fx.mult + ' 倍率', 'mult'); setCM(); tone(700, .07); await sleep(step); }
+  if (fx.x) { mult *= fx.x; pop('×' + fx.x + ' 倍率', 'x'); setCM(); tone(900, .12, 'sawtooth'); await sleep(step * 1.3); }
+  if (fx.money) { S.money += fx.money; pop('+$' + fx.money, 'money'); updateHUD(); tone(1046, .08, 'triangle'); await sleep(step); }
+}
+
+function countUp(from, to, ms) {
+  return new Promise(res => {
+    const t0 = performance.now();
+    const f = now => {
+      const k = Math.max(0, Math.min(1, (now - t0) / ms)), e = 1 - Math.pow(1 - k, 3);
+      $('#score').textContent = Math.floor(from + (to - from) * e).toLocaleString();
+      if (k < 1) requestAnimationFrame(f); else res();
+    };
+    requestAnimationFrame(f);
+  });
+}
+
+function destroyCard(c, color) {
+  const i = S.deckList.indexOf(c.d);
+  if (i >= 0) S.deckList.splice(i, 1);
+  burst(cardWorld(c), 60, color, 6);
+  c.ts = 0; setTimeout(() => disposeCard(c), 500);
+}
+
+async function playHand() {
+  const sel = hand.filter(c => c.sel);
+  if (!sel.length || S.busy || S.hands <= 0 || S.phase !== 'play') return;
+  S.busy = true; S.hands--; hovered = null;
+  played = sel.sort((a, b) => hand.indexOf(a) - hand.indexOf(b));
+  hand = hand.filter(c => !c.sel);
+  played.forEach(c => { c.sel = false; c.speed = 10; });
+  layoutPlayed(); updateHUD(); tone(260, .12, 'triangle');
+  if (S.boss?.tax && S.money > 0) { S.money -= S.boss.tax; popEl($('#moneyBox'))('-$' + S.boss.tax, 'money'); updateHUD(); }
+  await sleep(450);
+
+  const ev = evaluate(played), base = handBase(ev.k);
+  S.played[ev.k] = (S.played[ev.k] || 0) + 1;
+  chips = base.chips; mult = base.mult; setHandName(ev.k); setCM();
+  const scoring = played.filter(c => ev.sc.includes(c));
+  scoring.forEach(c => c.tp.y += 0.35);
+  await sleep(380);
+
+  const step = 230, echo = S.charms.some(ch => ch.id === 'echo');
+  let pitch = 0, echoUsed = false;
+  for (const c of scoring) {
+    const pop = popCard(c);
+    if (c.debuff) { c.sc = 0.85; pop('被封印', 'debuff'); tone(110, .15, 'sawtooth'); await sleep(step + 80); continue; }
+    const triggers = echo && !echoUsed ? 2 : 1;
+    echoUsed = true;
+    for (let t = 0; t < triggers; t++) {
+      if (t > 0) { pop('再次触发', 'retrig'); shake(S.charms.find(ch => ch.id === 'echo').el); tone(330, .1, 'triangle'); await sleep(step); }
+      c.sc = 1.32;
+      burst(cardWorld(c), 14, SUITS[c.suit].c, 3);
+      chips += cardChips(c); pop('+' + cardChips(c), 'chips'); setCM();
+      tone(440 * Math.pow(2, pitch++ / 12), .09); await sleep(step + 60);
+      if (c.enh === 'bonus') await applyFx({ chips: 30 }, pop, step);
+      if (c.enh === 'mult') await applyFx({ mult: 4 }, pop, step);
+      if (c.enh === 'glass') await applyFx({ x: 2 }, pop, step);
+      for (const ch of S.charms) {
+        const fx = ch.card?.(c);
+        if (fx) { c.sc = 1.22; shake(ch.el); await applyFx(fx, pop, step); }
+      }
+    }
+  }
+  // steel cards held in hand
+  for (const c of hand) {
+    if (c.enh !== 'steel' || c.debuff) continue;
+    c.sc = 1.25; burst(cardWorld(c), 12, '#ffffff', 3);
+    await applyFx({ x: 1.5 }, popCard(c), step);
+  }
+  const ctx = { k: ev.k, played };
+  for (const ch of S.charms) {
+    const fx = ch.hand?.(ctx);
+    if (fx) { shake(ch.el); await applyFx(fx, popEl(ch.el), step); }
+  }
+  renderCharms();
+
+  const total = Math.floor(chips * mult);
+  S.best = Math.max(S.best, total);
+  const big = total >= S.target * 0.6;
+  const [tx, ty] = toScreen(new THREE.Vector3(CX, PLAY_Y + 1.9, 0.3));
+  popAt(tx, ty, total.toLocaleString(), 'total' + (big ? ' fire' : ''));
+  if (big) {
+    shakeT = 0.45;
+    burst(new THREE.Vector3(CX, PLAY_Y + 1, 0), 120, '#ffb03a', 9);
+    burst(new THREE.Vector3(CX, PLAY_Y + 1, 0), 60, '#ff4058', 7);
+  }
+  tone(196, .3, 'sawtooth', .05); setTimeout(() => tone(294, .35, 'sawtooth', .05), 90);
+  const old = S.score; S.score += total;
+  await countUp(old, S.score, 650);
+  await sleep(250);
+
+  // glass may shatter on the way out
+  const gone = [];
+  for (const c of played) {
+    if (c.enh === 'glass' && scoring.includes(c) && !c.debuff && Math.random() < 0.25) {
+      popCard(c)('碎裂', 'debuff'); tone(1400, .12, 'triangle'); tone(1800, .1, 'sine');
+      destroyCard(c, '#bff6ff');
+    } else gone.push(c);
+  }
+  gone.forEach((c, i) => { c.speed = 6; c.tp.set(13 + i * 0.3, PLAY_Y + 2, 0.6); c.tr.set(0, Math.PI, -0.5); });
+  played = [];
+  setTimeout(() => gone.forEach(disposeCard), 1200);
+  chips = mult = 0; setCM(false); setHandName(null);
+  await sleep(300);
+
+  if (S.score >= S.target) { await sleep(300); return winRound(); }
+  if (S.hands <= 0) return gameOver(false);
+  await drawTo(); S.busy = false; updateHUD();
+}
+
+async function discard() {
+  const sel = hand.filter(c => c.sel);
+  if (!sel.length || S.busy || S.discards <= 0 || S.phase !== 'play') return;
+  S.busy = true; S.discards--; hovered = null;
+  hand = hand.filter(c => !c.sel);
+  sel.forEach((c, i) => { c.sel = false; c.speed = 7; c.tp.set(13, HAND_Y + 1 + i * 0.25, 0.4); c.tr.set(0, Math.PI, -0.7); });
+  setTimeout(() => sel.forEach(disposeCard), 1200);
+  tone(180, .1, 'triangle'); updateHUD();
+  await sleep(250);
+  await drawTo(); S.busy = false; preview();
+}
+
+/* ---------------- moons (consumables) ---------------- */
+async function morph(cards, fn) {
+  for (const c of cards) {
+    const patch = fn(c);
+    flip(c, () => { setCardData(c, patch); burst(cardWorld(c), 30, ENH[c.enh]?.c || SUITS[c.suit].c, 4); });
+    tone(620, .12, 'sine', .05);
+    await sleep(180);
+  }
+  await sleep(FLIP * 1000);
+}
+async function twin(c) {
+  const nd = { ...c.d };
+  S.deckList.push(nd);
+  const nc = makeCard(nd);
+  nc.g.position.copy(c.g.position); nc.g.rotation.copy(c.g.rotation); nc.sc = 0.2;
+  hand.push(nc); sortHand();
+  burst(cardWorld(c), 40, '#9ecbff', 5); tone(880, .15, 'sine', .05);
+  await sleep(500);
+}
+async function eclipse(cards) {
+  hand = hand.filter(c => !cards.includes(c));
+  cards.forEach(c => destroyCard(c, '#7a4dff'));
+  tone(90, .4, 'sawtooth', .05);
+  await sleep(500);
+  await drawTo();
+}
+async function useMoon(i) {
+  const m = S.moons[i];
+  if (S.phase !== 'play') return;
+  if (S.busy) return toast('请等待结算完成');
+  const sel = hand.filter(c => c.sel).sort((a, b) => hand.indexOf(a) - hand.indexOf(b));
+  if (sel.length < m.min || sel.length > m.max) {
+    return toast(`${m.n}需要选中 ${m.min === m.max ? m.min : `${m.min}-${m.max}`} 张手牌`);
+  }
+  S.busy = true; hovered = null;
+  S.moons.splice(i, 1); renderMoons();
+  await m.use(sel);
+  hand.forEach(c => c.sel = false);
+  S.busy = false; renderCharms(); preview();
+}
+
+function clearTable() {
+  [...hand, ...played].forEach(c => { c.speed = 6; c.tp.copy(DECK).setZ(0.2); c.tr.set(0, Math.PI, 0); c.ts = 0.9; setTimeout(() => disposeCard(c), 900); });
+  hand = []; played = [];
+}
+
+function winRound() {
+  S.phase = 'cash';
+  const isBoss = isBossRound(S.round);
+  const golds = hand.filter(c => c.enh === 'gold' && !c.debuff).length;
+  const rows = [
+    [isBoss ? '击败首领' : '通过盲注', isBoss ? 5 : 3],
+    [`剩余出牌 ×${S.hands}`, S.hands],
+    [`利息（每 $5 得 $1，上限 5）`, Math.min(5, Math.floor(S.money / 5))],
+  ];
+  if (golds) rows.push([`手中金卡 ×${golds}`, golds * 3]);
+  hand.filter(c => c.enh === 'gold').forEach(c => burst(cardWorld(c), 30, '#ffd060', 4));
+  const sum = rows.reduce((a, r) => a + r[1], 0);
+  $('#cashRows').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span class="num">$${r[1]}</span></div>`).join('');
+  $('#btnCash').textContent = `领取 $${sum}`;
+  $('#btnCash').onclick = () => {
+    S.money += sum; tone(880, .1, 'triangle'); setTimeout(() => tone(1175, .15, 'triangle'), 80);
+    $('#cash').classList.add('hidden');
+    if (S.round === 8 && !S.endless) return gameOver(true);
+    openShop();
+  };
+  setTimeout(() => { clearTable(); updateHUD(); }, golds ? 600 : 0);
+  tone(523, .12, 'triangle'); setTimeout(() => tone(659, .12, 'triangle'), 110); setTimeout(() => tone(784, .2, 'triangle'), 220);
+  setTimeout(() => $('#cash').classList.remove('hidden'), 700);
+}
+
+let offers = [], tomes = [], moonOffers = [];
+function rollOffers() {
+  const pool = CHARMS.filter(c => !S.charms.includes(c));
+  offers = [];
+  while (offers.length < 3 && pool.length) offers.push(pool.splice(rnd(pool.length), 1)[0]);
+  const mp = MOONS.slice(); moonOffers = [];
+  while (moonOffers.length < 2) moonOffers.push({ m: mp.splice(rnd(mp.length), 1)[0], sold: false });
+}
+function openShop() {
+  S.phase = 'shop'; S.rerollCost = 5;
+  rollOffers();
+  const keys = Object.keys(HT); tomes = [];
+  while (tomes.length < 1) { const k = keys[rnd(keys.length)]; if (!tomes.some(t => t.k === k)) tomes.push({ k, sold: false }); }
+  renderCharms(); renderMoons(); renderShop(); updateHUD();
+  $('#shop').classList.remove('hidden');
+}
+function shopItem(cls, ico, name, descHtml, label, disabled, onBuy) {
+  const it = document.createElement('div');
+  it.className = 'item ' + cls;
+  it.innerHTML = `<div class="charm"><div class="ico">${ico}</div><div class="nm">${name}</div></div><div class="desc">${descHtml}</div>`;
+  const b = document.createElement('button');
+  b.className = 'btn gold'; b.style.padding = '8px 18px';
+  b.textContent = label; b.disabled = disabled; b.onclick = onBuy;
+  it.appendChild(b);
+  return it;
+}
+function buyTone() { tone(660, .08, 'triangle'); setTimeout(() => tone(990, .12, 'triangle'), 70); }
+function renderShop() {
+  if (S.phase !== 'shop') return;
+  $('#shopMoney').textContent = '$' + S.money;
+  const full = S.charms.length >= MAX_CHARMS, mfull = S.moons.length >= MAX_MOONS;
+  $('#shopItems').innerHTML = '';
+  offers.forEach((ch, i) => {
+    $('#shopItems').appendChild(shopItem(ch.sold ? 'sold' : '', ch.i, ch.n, desc(ch),
+      full ? '槽位已满' : `购买 $${ch.p}`, full || S.money < ch.p, () => {
+        if (ch.sold || S.charms.length >= MAX_CHARMS || S.money < ch.p) return;
+        S.money -= ch.p; S.charms.push(ch); offers[i] = { ...ch, sold: true };
+        buyTone(); renderCharms(); renderShop(); updateHUD();
+      }));
+  });
+  $('#tomeItems').innerHTML = '';
+  tomes.forEach(t => {
+    const h = HT[t.k], l = S.levels[t.k] || 1;
+    $('#tomeItems').appendChild(shopItem('tome' + (t.sold ? ' sold' : ''), '📜', h.n,
+      `${h.n} Lv.${l} → ${l + 1}<br>+${h.ic} 筹码 +${h.im} 倍率`, '购买 $3', S.money < 3, () => {
+        if (t.sold || S.money < 3) return;
+        S.money -= 3; S.levels[t.k] = l + 1; t.sold = true; tone(784, .15, 'triangle'); renderShop(); updateHUD();
+      }));
+  });
+  moonOffers.forEach(o => {
+    $('#tomeItems').appendChild(shopItem('moonItem' + (o.sold ? ' sold' : ''), o.m.i, o.m.n, o.m.d,
+      mfull ? '槽位已满' : '购买 $3', mfull || S.money < 3, () => {
+        if (o.sold || S.moons.length >= MAX_MOONS || S.money < 3) return;
+        S.money -= 3; S.moons.push(o.m); o.sold = true; buyTone(); renderMoons(); renderShop(); updateHUD();
+      }));
+  });
+  $('#btnReroll').textContent = `刷新 $${S.rerollCost}`;
+  $('#btnReroll').disabled = S.money < S.rerollCost;
+}
+$('#btnReroll').onclick = () => {
+  if (S.money < S.rerollCost) return;
+  S.money -= S.rerollCost; S.rerollCost++; rollOffers(); tone(400, .08, 'triangle'); renderShop(); updateHUD();
+};
+$('#btnNext').onclick = () => { $('#shop').classList.add('hidden'); S.round++; startRound(); };
+
+function gameOver(win) {
+  S.phase = 'over'; clearTable();
+  $('#overTitle').textContent = win ? '天亮了' : '夜深了……';
+  const charms = S.charms.map(c => c.i).join(' ') || '无';
+  $('#overText').innerHTML = win
+    ? `你撑过了全部 8 轮长夜。<br>剩余金币 <b class="num" style="color:var(--gold)">$${S.money}</b> · 最高单手 <b class="num">${S.best.toLocaleString()}</b><br>护符：${charms}`
+    : `止步第 <b>${S.round}</b> 轮：${Math.floor(S.score).toLocaleString()} / ${S.target.toLocaleString()}<br>最高单手 <b class="num">${S.best.toLocaleString()}</b><br>护符：${charms}`;
+  $('#btnEndless').style.display = win ? '' : 'none';
+  setTimeout(() => $('#over').classList.remove('hidden'), 600);
+}
+$('#btnEndless').onclick = () => { S.endless = true; $('#over').classList.add('hidden'); openShop(); };
+
+/* ---------------- info panel ---------------- */
+function openInfo() {
+  const rows = Object.entries(HT).map(([k, h]) => {
+    const b = handBase(k);
+    return `<tr><td>${h.n}</td><td class="lv">Lv.${b.lvl}</td><td class="c">${b.chips}</td><td>×</td><td class="m">${b.mult}</td><td class="lv">已打出 ${S.played[k] || 0}</td></tr>`;
+  }).join('');
+  const suits = SUITS.map((s, i) => `<span style="color:${s.c === '#2b2d42' ? '#b8bfd8' : s.c}">${s.s} ${S.deckList.filter(d => d.suit === i).length}</span>`).join('　');
+  const enh = Object.entries(ENH).map(([k, e]) => {
+    const n = S.deckList.filter(d => d.enh === k).length;
+    return n ? `<span class="enhTag" style="background:${e.bg}">${e.n} ×${n}</span>` : '';
+  }).join('');
+  $('#infoBody').innerHTML = `<table class="ht">${rows}</table>
+    <div class="deckSum">牌组 ${S.deckList.length} 张：${suits}<br>${enh || '<span class="lbl">还没有增强牌，去夜市买月相吧</span>'}</div>`;
+  $('#info').classList.remove('hidden');
+}
+$('#btnInfo').onclick = openInfo;
+$('#btnInfoClose').onclick = () => $('#info').classList.add('hidden');
+
+/* ---------------- input ---------------- */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(-9, -9);
+addEventListener('pointermove', e => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
+renderer.domElement.addEventListener('pointerdown', () => {
+  if (!hovered || S.busy || S.phase !== 'play') return;
+  if (!hovered.sel && hand.filter(c => c.sel).length >= 5) { hovered.sc = 0.92; tone(120, .08); return; }
+  hovered.sel = !hovered.sel; hovered.sc = 1.14;
+  tone(hovered.sel ? 660 : 440, .05, 'triangle');
+  preview();
+});
+$('#btnPlay').onclick = playHand;
+$('#btnDiscard').onclick = discard;
+$('#sortRank').onclick = () => { S.sort = 'rank'; sortHand(); };
+$('#sortSuit').onclick = () => { S.sort = 'suit'; sortHand(); };
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#info').classList.add('hidden');
+  else if (e.key === 'Enter') playHand();
+  else if (e.key.toLowerCase() === 'd') discard();
+});
+
+function updateHover() {
+  hovered = null; hoverUV = null;
+  if (S.busy || S.phase !== 'play') { renderer.domElement.style.cursor = 'default'; return; }
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(hand.map(c => c.front), false)[0];
+  if (hit) { hovered = hit.object.userData.card; hoverUV = hit.uv; renderer.domElement.style.cursor = 'pointer'; }
+  else renderer.domElement.style.cursor = 'default';
+}
+
+/* ---------------- loop ---------------- */
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+  bgMat.uniforms.t.value = elapsed;
+  updateHover(); layoutHand(); updateCardTip();
+  allCards.forEach(c => updateCard(c, dt));
+  updateParticles(dt);
+  camera.position.copy(camBase);
+  if (shakeT > 0) {
+    shakeT -= dt;
+    const a = 0.35 * shakeT;
+    camera.position.x += (Math.random() - .5) * a; camera.position.y += (Math.random() - .5) * a;
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ---------------- boot ---------------- */
+await Promise.race([document.fonts.load('40px Bungee'), sleep(2000)]).catch(() => {});
+backMat = new THREE.MeshBasicMaterial({ map: backTex() });
+for (let i = 0; i < 7; i++) {
+  const m = new THREE.Mesh(cardGeo, backMat);
+  m.position.copy(DECK).add(new THREE.Vector3((Math.random() - .5) * 0.04, i * 0.02, i * 0.015));
+  m.rotation.z = (Math.random() - .5) * 0.05; m.castShadow = true;
+  scene.add(m); deckStack.push(m);
+}
+frame();
+startRound();
+
+// debug hooks for screenshots: #auto plays first hand, #shop opens shop, #moon uses a moon, #info opens info
+const H = location.hash;
+if (H === '#auto') setTimeout(() => {
+  S.charms.push(CHARMS.find(c => c.id === 'echo'), CHARMS[0]); renderCharms();
+  hand[0].d.enh = 'glass'; setCardData(hand[0], {}); hand[7].d.enh = 'steel'; setCardData(hand[7], {});
+  hand.slice(0, 5).forEach(c => c.sel = true); preview(); playHand();
+}, 1800);
+if (H === '#shop') setTimeout(() => { S.money = 20; S.charms.push(CHARMS[0], CHARMS[11]); S.moons.push(MOONS[2]); clearTable(); openShop(); }, 1500);
+if (H === '#moon') setTimeout(() => { S.moons.push(MOONS[0], MOONS[3]); renderMoons(); hand[0].sel = hand[1].sel = true; useMoon(0); }, 1500);
+if (H === '#smoke') window.__dbg = { S, get hand() { return hand; }, playHand, discard, useMoon, preview, renderCharms };
+if (H === '#info') setTimeout(() => { S.deckList[0].enh = 'gold'; S.deckList[5].enh = 'glass'; openInfo(); }, 1500);
+</script>
+</body>
+</html>

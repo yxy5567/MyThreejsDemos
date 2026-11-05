@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>余烬尖塔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="plates"></div>
+<div id="floaters"></div>
+
+<header id="hud" hidden>
+  <div class="hud-left">
+    <span class="hud-name">余烬骑士</span>
+    <span class="hud-stat hp" title="生命">血 <b id="hud-hp">80/80</b></span>
+    <span class="hud-stat gold" title="金币">金 <b id="hud-gold">99</b></span>
+    <span class="hud-stat floor" title="层数">层 <b id="hud-floor">0</b></span>
+    <span id="hud-relics" class="relics"></span>
+  </div>
+  <button id="btn-deck" class="hud-btn" type="button">牌组 <b id="hud-deck">10</b></button>
+</header>
+
+<div id="combat-ui" hidden>
+  <div id="energy" title="能量"><span id="energy-val">3</span><small>/<span id="energy-max">3</span></small></div>
+  <button id="pile-draw" class="pile" type="button" title="抽牌堆">抽 <b id="draw-count">0</b></button>
+  <button id="pile-discard" class="pile" type="button" title="弃牌堆">弃 <b id="discard-count">0</b></button>
+  <button id="btn-end" type="button">结束回合<small>E</small></button>
+  <div id="hand"></div>
+  <div id="target-hint" hidden>选择目标 · 右键取消</div>
+</div>
+
+<div id="screen"></div>
+<div id="overlay"></div>
+<svg id="aim" aria-hidden="true"></svg>
+<div id="toast" aria-live="polite"></div>
+
+<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<script src="data.js"></script>
+<script src="assets/sprites.js"></script>
+<script src="scene.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
