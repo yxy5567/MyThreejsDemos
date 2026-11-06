@@ -335,3 +335,13 @@ button:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- PixelLab 像素素材 ---------- */
+.card .art img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; image-rendering: pixelated;
+}
+.relic { overflow: hidden; }
+.relic-img { width: 26px; height: 26px; image-rendering: pixelated; display: block; }
+.loot button .ic .relic-img { width: 32px; height: 32px; margin: 0 auto; }
+.relic-img.big { width: 96px; height: 96px; }

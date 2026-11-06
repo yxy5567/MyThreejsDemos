@@ -29,8 +29,11 @@ canvas{display:block}
 .seat{position:fixed;transform:translate(-50%,-100%);z-index:2;text-align:center;pointer-events:none;
   padding:5px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);min-width:96px;transition:box-shadow .2s,border-color .2s,opacity .3s}
 .seat .nm{font-size:13px;font-weight:600}
-.seat .pf{display:block;width:44px;height:44px;margin:-26px auto 3px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#111}
+.seat .pf{display:block;width:52px;height:52px;margin:-32px auto 3px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#111}
 .seat.active .pf{border-color:var(--gold)}
+/* 有头像时，行动标签和台词气泡要挪到头像上方 */
+.seat.hasPf .act{top:-58px}
+.seat.hasPf .say{bottom:calc(100% + 64px)}
 .seat .ck{font-size:12px;color:var(--gold)}
 .seat .act{position:absolute;left:50%;top:-24px;transform:translateX(-50%);font-size:12px;padding:1px 9px;border-radius:9px;
   background:#2a3550;white-space:nowrap;opacity:0;transition:opacity .2s}
@@ -68,7 +71,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #over h2{margin:0 0 10px;color:var(--gold)}
 .kb{font-size:11px;opacity:.6;margin-left:4px}
 #side .tools{display:flex;gap:6px;justify-content:flex-end}
-#side .tools button{padding:5px 10px;font-size:12px;background:#2c3a5c;box-shadow:0 3px 0 rgba(0,0,0,.45)}
+#side .tools button{padding:5px 9px;font-size:12px;white-space:nowrap;background:#2c3a5c;box-shadow:0 3px 0 rgba(0,0,0,.45)}
 #side .tools button.on{background:#b5741a}
 #me .stat{font-size:11.5px;color:var(--dim);margin-top:6px}
 .seat .act:empty,#me .act:empty{display:none}
@@ -692,7 +695,7 @@ const seatEls = [];
 for (let i = 1; i < N; i++) {
   const d = document.createElement('div'); d.className = 'seat';
   d.innerHTML = `<div class="say"></div><div class="act"></div><img class="pf" alt="${NAMES[i]}" hidden><div class="nm">${NAMES[i]} <span style="color:var(--dim);font-weight:400;font-size:11px">${STYLES[i].tag}</span></div><div class="ck"></div>`;
-  d._minTop = 78; $('#seats').appendChild(d); seatEls[i] = d;
+  d._minTop = 130; $('#seats').appendChild(d); seatEls[i] = d;   // 留出头像和行动标签的高度
 }
 const meEl = $('#me');
 function setAct(p, text, cls = '') {
@@ -1091,12 +1094,32 @@ $('#tMus').onclick = () => { musicOn = !musicOn; $('#tMus').textContent = musicO
 
 // 美术资源替换
 loadTex('felt.jpg', t => { felt.material[1].map = t; felt.material[1].needsUpdate = true; });
-loadTex('card_back.png', t => { backMat.map = t; backMat.needsUpdate = true; });
-loadTex('room.jpg', t => { scene.background = t; scene.fog = null; floor.visible = false; });
-for (let i = 1; i < N; i++) {   // 头像用 <img>，file:// 下也能显示
+loadTex('card_back.jpeg', t => { backMat.map = t; backMat.needsUpdate = true; });
+// 背景照片先模糊 + 压暗 + 暗角，保证不抢桌面的戏，也不会看起来像桌子浮在照片里的桌子上
+loadTex('room.jpg', t => {
+  const img = t.image, c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d');
+  g.filter = 'blur(8px) brightness(0.7) saturate(0.9)';
+  g.drawImage(img, -20, -20, c.width + 40, c.height + 40);
+  g.filter = 'none';
+  const vg = g.createRadialGradient(c.width / 2, c.height * 0.45, c.height * 0.2, c.width / 2, c.height * 0.45, c.width * 0.65);
+  vg.addColorStop(0, 'rgba(7,9,13,0)'); vg.addColorStop(1, 'rgba(7,9,13,0.6)');
+  g.fillStyle = vg; g.fillRect(0, 0, c.width, c.height);
+  // 下半部分渐隐到地板色，和桌子底下的地面接上
+  const fl = g.createLinearGradient(0, c.height * 0.5, 0, c.height);
+  fl.addColorStop(0, 'rgba(10,8,7,0)'); fl.addColorStop(1, 'rgba(10,8,7,0.85)');
+  g.fillStyle = fl; g.fillRect(0, 0, c.width, c.height);
+  const bg = new THREE.CanvasTexture(c); bg.colorSpace = THREE.SRGBColorSpace;
+  scene.background = bg; t.dispose();
+  scene.fog = null; floor.visible = false;   // 地板平面会整个挡住背景图
+});
+// 头像用 <img>，file:// 下也能显示；顺序对应座位 1~5
+const PORTRAITS = [null, 'grayhair.jpeg', 'youngwoman.jpeg', 'orangehair.jpeg', 'darkskin.jpeg', 'baldman.jpeg'];
+for (let i = 1; i < N; i++) {
   const img = new Image();
-  img.onload = () => { const el = seatEls[i].querySelector('.pf'); el.src = img.src; el.hidden = false; };
-  img.src = `${ASSET}portrait_${i}.png`;
+  img.onload = () => { const el = seatEls[i].querySelector('.pf'); el.src = img.src; el.hidden = false; seatEls[i].classList.add('hasPf'); };
+  img.src = ASSET + PORTRAITS[i];
 }
 const SPDS = [1, 2, 4]; let spdI = 0;
 $('#tSpd').onclick = () => { spdI = (spdI + 1) % SPDS.length; speedBase = SPDS[spdI]; $('#tSpd').textContent = `速度 ${speedBase}x`; };
@@ -1112,7 +1135,11 @@ const clock = new THREE.Clock(), v = new THREE.Vector3();
 function place(el, p3) {
   v.copy(p3).project(camera);
   el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px';
-  el.style.top = Math.max(el._minTop || 0, (1 - v.y) / 2 * innerHeight) + 'px';
+  let x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight;
+  // 远端座位的名牌顶到屏幕上沿时，改放到角色侧边，避免压住脸
+  if (el._minTop && y < el._minTop) { x += x < innerWidth / 2 ? -120 : 120; y = el._minTop; }
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
 }
 const mouse = { x: 0, y: 0 }, camCur = new THREE.Vector3();
 addEventListener('pointermove', e => { mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1; });

@@ -1,5 +1,8 @@
-# 临时目录：素材截图、备份与打包脚本
+# 临时素材、候选图、截图与备份（正式资源和 tools/ 脚本保留）
 /_pl/
+/emberspire/work/
+/holdem/scratch/
+/vampiresurvival/scratch/
 
 # 依赖
 node_modules/

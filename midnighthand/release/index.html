@@ -144,6 +144,7 @@ table.ht td.m{color:var(--red);font-family:Bungee}
 table.ht td.lv{color:var(--dim);font-size:12px}
 .deckSum{margin-top:12px;font-size:14px;color:#cfd6ee;line-height:1.9;text-align:center}
 .enhTag{display:inline-block;padding:0 8px;border-radius:6px;margin:0 3px;font-size:12px;color:#111;font-weight:700}
+#btnMusic{position:fixed;right:22px;bottom:48px;z-index:2}
 @media (max-width:900px){
   #side{width:190px} #charmBar{left:220px} .panel{margin-left:0}
 }
@@ -183,6 +184,7 @@ table.ht td.lv{color:var(--dim);font-size:12px}
   </div>
   <button class="btn discard" id="btnDiscard">弃牌</button>
 </div>
+<button class="btn sort mini" id="btnMusic" aria-pressed="true">♪ 音乐 开</button>
 <div id="deckInfo">牌库 <span id="deckCount" class="num">52</span>/<span id="deckTotal">52</span></div>
 <div id="cardTip"></div><div id="toast"></div>
 <div id="banner"><div class="big"></div><div class="sub"></div></div>
@@ -570,6 +572,38 @@ function tone(f, d = 0.08, type = 'square', v = 0.04) {
   } catch (e) { /* audio is optional */ }
 }
 
+/* ---------------- music ---------------- */
+// Looping BGM: table theme for normal rounds, crossfades to the boss theme on boss rounds.
+// Files are optional; a missing file just leaves that track silent.
+const BGM = { table: new Audio('assets/audio/table.mp3'), boss: new Audio('assets/audio/boss.mp3') };
+Object.values(BGM).forEach(a => { a.loop = true; a.volume = 0; a.preload = 'auto'; a.onerror = () => { a.dead = true; }; });
+const BGM_VOL = 0.4;
+let bgmOn = true, bgmCur = 'table', bgmStarted = false;
+try { bgmOn = localStorage.getItem('mh_bgm') !== '0'; } catch (e) { /* storage unavailable */ }
+function fadeTo(a, to, ms = 900) {
+  if (a.dead) return;
+  cancelAnimationFrame(a._f);
+  if (to > 0 && a.paused) a.play().catch(() => {});
+  const from = a.volume, t0 = performance.now();
+  const f = now => {
+    const k = Math.min(1, (now - t0) / ms);
+    a.volume = from + (to - from) * k;
+    if (k < 1) a._f = requestAnimationFrame(f); else if (to === 0) a.pause();
+  };
+  a._f = requestAnimationFrame(f);
+}
+function setMusic(name) {
+  bgmCur = name;
+  if (!bgmStarted) return;
+  for (const [k, a] of Object.entries(BGM)) fadeTo(a, bgmOn && k === name ? BGM_VOL : 0);
+}
+function syncMusicBtn() {
+  const b = document.querySelector('#btnMusic');
+  b.textContent = bgmOn ? '♪ 音乐 开' : '♪ 音乐 关'; b.setAttribute('aria-pressed', String(bgmOn));
+}
+// browsers block autoplay until the first user gesture
+addEventListener('pointerdown', () => { if (!bgmStarted) { bgmStarted = true; setMusic(bgmCur); } }, { once: true });
+
 /* ---------------- poker evaluation ---------------- */
 function evaluate(cards) {
   if (!cards.length) return null;
@@ -762,6 +796,7 @@ function startRound() {
   S.target = targetOf(S.round); S.score = 0; S.hands = 4; S.discards = 3; S.handSize = HAND_SIZE;
   const isBoss = isBossRound(S.round);
   S.boss = null;
+  setMusic(isBoss ? 'boss' : 'table');
   if (isBoss) {
     if (!S.bossBag.length) S.bossBag = shuffle(BOSSES.slice());
     S.boss = S.bossBag.pop()(); S.boss.setup?.();
@@ -1067,6 +1102,12 @@ function openInfo() {
   $('#info').classList.remove('hidden');
 }
 $('#btnInfo').onclick = openInfo;
+$('#btnMusic').onclick = () => {
+  bgmOn = !bgmOn; bgmStarted = true;
+  try { localStorage.setItem('mh_bgm', bgmOn ? '1' : '0'); } catch (e) { /* ignore */ }
+  syncMusicBtn(); setMusic(bgmCur);
+};
+syncMusicBtn();
 $('#btnInfoClose').onclick = () => $('#info').classList.add('hidden');
 
 /* ---------------- input ---------------- */

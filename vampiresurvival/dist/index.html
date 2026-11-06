@@ -66,7 +66,12 @@
   .dmgrow { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 13px; text-align: left; }
   .dmgrow .bar { flex: 1; height: 8px; background: #2a2140; border-radius: 4px; overflow: hidden; }
   .dmgrow .bar i { display: block; height: 100%; background: #d79a2b; }
-  #start { justify-content: flex-start; overflow-y: auto; padding-top: max(16px, 6vh); }
+  #start { justify-content: flex-start; overflow-y: auto; padding-top: max(16px, 6vh);
+    /* 标题背景（Midjourney）：中心压暗给 UI 留出可读区域，底部加深衬托商店 */
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 48%, rgba(6,4,14,.8), rgba(6,4,14,.4) 70%, rgba(6,4,14,.2)),
+      linear-gradient(to bottom, rgba(6,4,14,.1), rgba(6,4,14,.55) 65%, rgba(6,4,14,.92)),
+      url(assets/bg_title.jpg) center / cover no-repeat #07060d; }
   #start .sub { margin-bottom: 16px; }
   #diffs { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap; }
   .df { width: 180px; padding: 8px 10px; background: #1c1630; border: 2px solid #4a3f6b; border-radius: 8px; cursor: pointer; font-size: 12px; color: #c9c2dc; line-height: 1.5; }
@@ -1574,7 +1579,8 @@ let bgmOn = false;
 function bgmUpdate(dt) {
   if (!bgmOn) return;
   const bossAlive = enemies.some(e => ETYPES[e.type].boss);
-  const want = state === 'over' ? null : bossAlive ? 'boss' : 'stage';
+  let want = state === 'over' ? null : bossAlive ? 'boss' : 'stage';
+  if (want === 'boss' && bgm.boss.dead) want = 'stage'; // 没有首领曲文件时继续播关卡曲
   for (const [k, a] of Object.entries(bgm)) {
     if (a.dead) continue;
     const target = k === want ? (state === 'play' ? 0.35 : 0.15) : 0;

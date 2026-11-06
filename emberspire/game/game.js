@@ -20,6 +20,7 @@ const defOf = c => CARDS[c.id];
 const valsOf = c => ({ ...defOf(c).v, ...(c.up ? defOf(c).u : {}) });
 const costOf = c => { const d = defOf(c); return c.up && d.u.cost !== undefined ? d.u.cost : d.cost; };
 const has = r => G.player.relics.includes(r);
+const relicImg = r => `<img class="relic-img" src="assets/relics/${r}.png" alt="${RELICS[r].name}" onerror="this.replaceWith('${RELICS[r].glyph}')">`;
 
 function calcDmg(src, tgt, base, raw = false) {
   let d = base + (raw ? 0 : (src.status.str || 0));
@@ -48,7 +49,7 @@ function cardEl(c) {
   el.innerHTML = `
     ${cost >= 0 ? `<div class="cost${c.up && d.u.cost !== undefined ? ' cheaper' : ''}">${cost}</div>` : ''}
     <div class="name">${d.name}${c.up ? '+' : ''}</div>
-    <div class="art">${icon(d.art, artColor)}</div>
+    <div class="art">${icon(d.art, artColor)}<img src="assets/cards/${c.id}.png" alt="" onerror="this.remove()"></div>
     <div class="type">${TYPE_NAME[d.type]}</div>
     <div class="desc"><span>${cardText(c)}${d.ex ? '<br><em>消耗</em>' : ''}${d.type === 'power' ? '' : ''}</span></div>`;
   return el;
@@ -62,7 +63,7 @@ function hud() {
   $('#hud-gold').textContent = P.gold;
   $('#hud-floor').textContent = G.floor;
   $('#hud-deck').textContent = P.deck.length;
-  $('#hud-relics').innerHTML = P.relics.map(r => `<span class="relic" data-relic="${r}" data-tip="${RELICS[r].name}\n${RELICS[r].tip}">${RELICS[r].glyph}</span>`).join('');
+  $('#hud-relics').innerHTML = P.relics.map(r => `<span class="relic" data-relic="${r}" data-tip="${RELICS[r].name}\n${RELICS[r].tip}">${relicImg(r)}</span>`).join('');
 }
 function relicFlash(r) {
   const el = document.querySelector(`.relic[data-relic="${r}"]`);
@@ -289,7 +290,7 @@ async function startCombat(kind) {
   const pool = kind === 'fight' ? (G.floor <= 2 ? ENCOUNTERS.easy : ENCOUNTERS.normal) : ENCOUNTERS[kind];
   const ids = pick(pool);
   $('#screen').innerHTML = ''; $('#screen').className = '';
-  Scene.setMode('combat');
+  Scene.setMode('combat'); Music.play(kind === 'boss' ? 'boss' : 'combat');
   P.block = 0; P.status = {};
   C = { kind, enemies: [], draw: shuffle(P.deck.map(c => ({ ...c }))), hand: [], discard: [], exhaust: [], energy: 0, maxEnergy: 3, turn: 0, phase: 'start', over: false };
   const xs = { 1: [3.4], 2: [1.9, 5], 3: [0.9, 3.4, 5.9] }[ids.length];
@@ -682,7 +683,7 @@ function genMap() {
 function availableNodes() { return G.pos ? G.pos.next : G.map.rows[0]; }
 
 function showMap() {
-  Scene.setMode('map');
+  Scene.setMode('map'); Music.play('map');
   const scr = $('#screen'); scr.className = '';
   const ROW = 76, H = 8 * ROW + 40;
   const yOf = r => r === 7 ? 50 : H - 30 - r * ROW;
@@ -834,7 +835,7 @@ function shopScreen() {
       <p class="sub">“灰烬换不来命，金子可以。” 你有 <b style="color:var(--gold)">${P.gold}</b> 金。</p>
       <div class="card-grid" id="shop-cards"></div>
       <div class="loot">
-        ${relic ? `<button type="button" id="buy-relic" ${relic.sold || P.gold < relic.price ? 'disabled' : ''} style="${relic.sold ? 'opacity:.3' : ''}"><span class="ic">${RELICS[relic.r].glyph}</span><span>${RELICS[relic.r].name} · <b style="color:var(--gold)">${relic.price} 金</b><small>${RELICS[relic.r].tip}</small></span></button>` : ''}
+        ${relic ? `<button type="button" id="buy-relic" ${relic.sold || P.gold < relic.price ? 'disabled' : ''} style="${relic.sold ? 'opacity:.3' : ''}"><span class="ic">${relicImg(relic.r)}</span><span>${RELICS[relic.r].name} · <b style="color:var(--gold)">${relic.price} 金</b><small>${RELICS[relic.r].tip}</small></span></button>` : ''}
         <button type="button" id="buy-remove" ${removal.sold || P.gold < removal.price ? 'disabled' : ''} style="${removal.sold ? 'opacity:.3' : ''}"><span class="ic">烬</span><span>移除一张牌 · <b style="color:var(--gold)">${removal.price} 金</b><small>让一张牌化为灰烬</small></span></button>
       </div>
       <button type="button" class="btn" id="leave">离开</button>`);
@@ -862,7 +863,8 @@ function shopScreen() {
 
 function treasureScreen() {
   const msg = G.gainRandomRelic();
-  const p = panel(`<div style="width:90px;height:90px;color:var(--gold)">${icon('anvil', '#e3b553')}</div><h2>余烬宝箱</h2><p class="sub">${msg}</p><button type="button" class="btn" id="go-on">继续</button>`);
+  const got = G.player.relics.at(-1);
+  const p = panel(`<div style="width:96px;height:96px">${relicImg(got).replace("relic-img", "relic-img big")}</div><h2>余烬宝箱</h2><p class="sub">${msg}</p><button type="button" class="btn" id="go-on">继续</button>`);
   p.querySelector('#go-on').addEventListener('click', showMap);
 }
 
@@ -882,7 +884,7 @@ function eventScreen() {
 }
 
 function endScreen(win) {
-  Scene.setMode('map');
+  Scene.setMode('map'); Music.play(null);
   $('#hud').hidden = true;
   const p = panel(win
     ? `<h1>火熄</h1><h2>灰烬之王倒下了</h2><p class="sub">尖塔顶端的火焰慢慢暗下去。你带着 ${G.player.deck.length} 张牌、${G.player.relics.length} 件遗物登顶。</p><button type="button" class="btn" id="again">再爬一次</button>`
@@ -922,9 +924,3 @@ $('#pile-discard').addEventListener('click', () => C && showPile('弃牌堆', C.
 Scene.init($('#gl'));
 trackPlates();
 title();
-if (location.hash.startsWith('#t')) {
-  addEventListener('error', e => { document.body.dataset.log = 'ERR ' + e.message + ' @' + e.lineno; });
-  newRun();
-  const which = location.hash.slice(2) || 'fight';
-  setTimeout(() => { if (which === 'fight') { ENCOUNTERS.easy = [['cinderling', 'bonecrow', 'sporecap']]; startCombat('fight'); } else if (which === 'elite') { ENCOUNTERS.elite = [['golem', 'revenant']]; startCombat('elite'); } else if (which === 'boss') startCombat('boss'); else { ENCOUNTERS.easy = [['zealot']]; startCombat('fight'); } }, 100);
-}
